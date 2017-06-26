@@ -9,7 +9,7 @@ import (
 //
 type Timer chan bool
 
-func (pid *Pid) SendAfter(data Term, timeoutMs int32) Timer {
+func (pid *Pid) SendAfterWithStop(data Term, timeoutMs int32) Timer {
 	stop := make(chan bool)
 
 	go func() {
@@ -27,6 +27,13 @@ func (pid *Pid) SendAfter(data Term, timeoutMs int32) Timer {
 	return stop
 }
 
-func (timer Timer) TimerStop() {
+func (timer Timer) Stop() {
 	close(timer)
+}
+
+func (pid *Pid) SendAfter(data Term, timeoutMs int32) {
+	go func() {
+		time.Sleep(time.Duration(timeoutMs) * time.Millisecond)
+		pid.Cast(data)
+	}()
 }

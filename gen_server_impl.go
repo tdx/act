@@ -58,13 +58,6 @@ func (gs *GenServerImpl) HandleCall(
 }
 
 //
-// HandleInfo handles all another incoming messages
-//
-func (gs *GenServerImpl) HandleInfo(msg Term) {
-	log.Printf("GenServerImpl:HandleInfo : %#v", msg)
-}
-
-//
 // Terminate called when process died
 //
 func (gs *GenServerImpl) Terminate(reason string) {

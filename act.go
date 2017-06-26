@@ -26,32 +26,32 @@ type makePidResp struct {
 type makePidReq struct {
 	prefix  string
 	name    string
-	replyTo chan makePidResp
+	replyTo chan<- makePidResp
 }
 
 type regNameReq struct {
 	prefix  string
 	name    string
 	pid     *Pid
-	replyTo chan bool
+	replyTo chan<- bool
 }
 
 type unregNameReq struct {
 	prefix  string
 	name    string
-	replyTo chan bool
+	replyTo chan<- bool
 }
 
 type whereNameReq struct {
 	prefix  string
 	name    string
-	replyTo chan *Pid
+	replyTo chan<- *Pid
 }
 
 type regMap map[string]*Pid
 type wherePrefixReq struct {
 	prefix  string
-	replyTo chan regMap
+	replyTo chan<- regMap
 }
 
 type registryChan struct {
@@ -147,18 +147,30 @@ func SpawnPrefixName(
 }
 
 // Register associates the name with pid
-func Register(name string, pid *Pid) {
+func Register(name string, pid *Pid) error {
 	replyChan := make(chan bool)
 	r := regNameReq{name: name, pid: pid, replyTo: replyChan}
 	env.registry.regNameChan <- r
-	<-replyChan
+	reply := <-replyChan
+
+	if reply == true {
+		return nil
+	}
+
+	return fmt.Errorf("name '%s' already registered", name)
 }
 
-func RegisterPrefix(prefix, name string, pid *Pid) {
+func RegisterPrefix(prefix, name string, pid *Pid) error {
 	replyChan := make(chan bool)
 	r := regNameReq{prefix: prefix, name: name, pid: pid, replyTo: replyChan}
 	env.registry.regNameChan <- r
-	<-replyChan
+	reply := <-replyChan
+
+	if reply == true {
+		return nil
+	}
+
+	return fmt.Errorf("name '%s/%s' already registered", name, prefix)
 }
 
 // Unregister removes the registered name
@@ -197,7 +209,7 @@ func WhereisPrefix(prefix, name string) *Pid {
 }
 
 // Returns all pids with same prefix
-func WhereisAllPrefix(prefix string) regMap {
+func Whereare(prefix string) regMap {
 	replyChan := make(chan regMap)
 	r := wherePrefixReq{prefix: prefix, replyTo: replyChan}
 	env.registry.wherePrefixChan <- r
@@ -215,7 +227,6 @@ func (n *act) registrator() {
 	for {
 		select {
 		case req := <-n.registry.makePidChan:
-			// FIXME: make proper allocation, now it just stub
 			n.serial += 1
 
 			var newPid Pid
@@ -248,8 +259,12 @@ func (n *act) registrator() {
 			if _, ok := n.registered[req.prefix]; !ok {
 				n.registered[req.prefix] = make(regMap)
 			}
-			n.registered[req.prefix][req.name] = req.pid
-			req.replyTo <- true
+			if _, ok := n.registered[req.prefix][req.name]; ok {
+				req.replyTo <- false // name registered
+			} else {
+				n.registered[req.prefix][req.name] = req.pid
+				req.replyTo <- true
+			}
 
 		case req := <-n.registry.unregNameChan:
 			if _, ok := n.registered[req.prefix]; ok {

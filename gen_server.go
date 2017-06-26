@@ -3,7 +3,7 @@ package act
 import (
 	"errors"
 	"fmt"
-	"runtime"
+	// "runtime"
 )
 
 type GenInitAction int
@@ -42,7 +42,7 @@ type genReq struct {
 	data Term
 }
 
-type From chan Term
+type From chan<- Term
 
 /*
   noreply
@@ -55,10 +55,12 @@ type genCallReq struct {
 }
 
 type stopReq struct {
-	replyChan chan bool
+	replyChan chan<- bool
 }
 
+//
 // GenServer interface
+//
 type GenServer interface {
 	Init(args ...interface{}) (action GenInitAction, stopReason string)
 
@@ -66,8 +68,6 @@ type GenServer interface {
 
 	HandleCall(req Term, from From) (
 		action GenCallAction, reply Term, stopReason string)
-
-	HandleInfo(msg Term)
 
 	Terminate(reason string)
 
@@ -91,17 +91,33 @@ func GenServerLoop(
 	pid *Pid,
 	args ...interface{}) {
 
+	var replyCall chan<- Term
+	var replyStop chan<- bool
+	inCall := false
+	inStop := false
+	inTerminate := false
+
 	defer func() {
 		if r := recover(); r != nil {
 
-			trace := make([]byte, 1024)
-			count := runtime.Stack(trace, true)
 			fmt.Printf("pid #%d/%s/%s: GenServer recovered: %#v\n",
 				pid.Id(), prefix, name, r)
-			fmt.Printf("pid #%d/%s/%s: Stack of %d bytes: %s\n",
-				pid.Id(), prefix, name, count, trace)
+			// trace := make([]byte, 1024)
+			// count := runtime.Stack(trace, true)
+			// fmt.Printf("pid #%d/%s/%s: Stack of %d bytes: %s\n",
+			// 	pid.Id(), prefix, name, count, trace)
 
-			gs.Terminate(fmt.Sprintf("crashed: %#v", r))
+			if !inTerminate {
+				gs.Terminate(fmt.Sprintf("crashed: %#v", r))
+			}
+
+			if inCall {
+				replyCall <- fmt.Errorf("crashed: #v", r)
+			}
+
+			if inStop {
+				replyStop <- true
+			}
 		}
 
 		UnregisterPrefix(prefix, name)
@@ -122,12 +138,21 @@ func GenServerLoop(
 	}
 
 	for {
+
+		inCall = false
+		inStop = false
+		inTerminate = false
+
 		select {
 		case m := <-pid.inChan:
 
 			switch m := m.(type) {
 			case *genCallReq:
 				nLog("call message: %#v", m)
+
+				inCall = true
+				replyCall = m.replyChan
+
 				action, reply, reason := gs.HandleCall(m.data, m.replyChan)
 				nLog("call action: %#v, reply: %#v", action, reply)
 
@@ -136,6 +161,7 @@ func GenServerLoop(
 				}
 
 				if action == GenCallStop {
+					inTerminate = true
 					gs.Terminate(reason)
 					return
 				}
@@ -145,6 +171,7 @@ func GenServerLoop(
 				nLog("cast action: %#v", action)
 
 				if action == GenCastStop {
+					inTerminate = true
 					gs.Terminate(reason)
 					return
 				}
@@ -152,7 +179,11 @@ func GenServerLoop(
 
 		case m := <-pid.stopChan:
 
+			inStop = true
+			replyStop = m.replyChan
+
 			nLog("stop message")
+			inTerminate = true
 			gs.Terminate("stop")
 			m.replyChan <- true
 
@@ -162,6 +193,10 @@ func GenServerLoop(
 }
 
 // ---------------------------------------------------------------------------
+func Reply(replyTo From, data Term) {
+	replyTo <- data
+}
+
 func (pid *Pid) Call(data Term) (reply Term, err error) {
 
 	defer func() {
@@ -177,9 +212,13 @@ func (pid *Pid) Call(data Term) (reply Term, err error) {
 			pid.inChan <- &genCallReq{data, replyChan}
 			replyTerm := <-replyChan
 
+			// call crashed ?
+			switch err := replyTerm.(type) {
+			case error:
+				return nil, err
+			}
+
 			return replyTerm, nil
-		} else {
-			return nil, errors.New("inChan is nil")
 		}
 	}
 
@@ -199,10 +238,7 @@ func (pid *Pid) Cast(data Term) (err error) {
 			pid.inChan <- &genReq{data}
 
 			return nil
-		} else {
-			return errors.New("inChan is nil")
 		}
-
 	}
 
 	return errors.New(NoProc)
@@ -221,11 +257,8 @@ func (pid *Pid) Stop() (err error) {
 			replyChan := make(chan bool)
 			pid.stopChan <- &stopReq{replyChan}
 			<-replyChan
-			// close(pid.stopChan)
 
 			return nil
-		} else {
-			return errors.New("stopChan is nil")
 		}
 	}
 
