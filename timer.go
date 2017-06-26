@@ -10,7 +10,7 @@ import (
 type Timer chan bool
 
 func (pid *Pid) SendAfterWithStop(data Term, timeoutMs int32) Timer {
-	stop := make(chan bool)
+	stop := make(Timer)
 
 	go func() {
 		ticker := time.NewTicker(time.Duration(timeoutMs) * time.Millisecond)
