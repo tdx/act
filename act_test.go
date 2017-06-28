@@ -16,6 +16,10 @@ type gs struct {
 	timer Timer
 }
 
+type gsi struct {
+	GenServerImpl
+}
+
 type reqInc struct {
 	i int
 }
@@ -597,6 +601,30 @@ func TestRegisterInSpawn(t *testing.T) {
 	}
 
 	_, err = start_prefix("newGroup", name)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGenServerImpl(t *testing.T) {
+	s := new(gsi)
+	pid, err := Spawn(s)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = pid.Call(1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = pid.Cast(1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = pid.Stop()
 	if err != nil {
 		t.Error(err)
 	}

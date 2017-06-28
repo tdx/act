@@ -22,7 +22,8 @@ func (gs *GenServerImpl) Init(
 	action GenInitAction,
 	stopReason string) {
 
-	log.Printf("GenServerImpl:Init : pid: %#v, args: %#v", gs.Self, args)
+	log.Printf("GenServerImpl:Init : pid: #%d, reg name: %s/%s, args: %#v",
+		gs.Self().Id(), gs.Prefix(), gs.Name(), args)
 
 	return GenInitOk, ""
 }
