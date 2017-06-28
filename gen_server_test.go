@@ -11,9 +11,10 @@ import (
 //
 type gs struct {
 	GenServerImpl
-	i     int
-	crash bool
-	timer Timer
+	i          int
+	crash      bool
+	timer      *Timer
+	gotTimeout bool
 }
 
 type reqInc struct {
@@ -26,10 +27,19 @@ const (
 	cmdCrash       string = "crash"
 	cmdCrashInStop string = "stopCrash"
 	cmdCallNoReply string = "callNoReply"
+	cmdGetTimeout  string = "getTimeout"
 
 	cmdStartTimer          string = "startTimer"
 	cmdStartStoppableTimer string = "startStoppableTimer"
 	cmdStopTimer           string = "stopTimer"
+
+	cmdCallBadReply string = "badCallReply"
+	cmdCastBadReply string = "badCastReply"
+
+	cmdInitTimeout        string = "initTimeout"
+	cmdCallTimeout        string = "callTimeout"
+	cmdCallNoReplyTimeout string = "callNoReplyTimeout"
+	cmdCastTimeout        string = "castTimeout"
 )
 
 var pid *Pid
@@ -48,6 +58,14 @@ func start_fail() (pid *Pid, err error) {
 
 	s := new(gs)
 	pid, err = Spawn(s, true)
+
+	return
+}
+
+func start_fail2() (pid *Pid, err error) {
+
+	s := new(gs)
+	pid, err = Spawn(s, "bad reply")
 
 	return
 }
@@ -88,36 +106,40 @@ func inc(pid *Pid) (int, error) {
 // ----------------------------------------------------------------------------
 // GenServer interface callbacks
 // ----------------------------------------------------------------------------
-func (s *gs) Init(args ...interface{}) (
-	action GenInitAction, stopReason string) {
+func (s *gs) Init(args ...interface{}) Term {
 
 	if len(args) > 0 {
-		switch stop := args[0].(type) {
+		switch arg := args[0].(type) {
 		case bool:
-			if stop == true {
-				return GenInitStop, "simulate init failed"
+			if arg == true {
+				return &GsInitStop{"simulate init failed"}
+			}
+		case string:
+			if arg == "bad reply" {
+				return "init bad reply"
+			} else if arg == cmdInitTimeout {
+				return &GsInitOkTimeout{300}
 			}
 		}
 	}
 
-	return GenInitOk, ""
+	return &GsInitOk{}
 }
 
-func (s *gs) HandleCall(req Term, from From) (
-	action GenCallAction, reply Term, stopReason string) {
+func (s *gs) HandleCall(req Term, from From) Term {
 
 	switch req := req.(type) {
 	case *reqInc:
 		s.i++
 		req.i = s.i
 
-		return GenCallReply, req, ""
+		return &GsCallReply{req}
 
 	case string:
 		if req == cmdCrash {
 			var i int = 1
 
-			return GenCallReply, i / (i - 1), ""
+			return &GsCallReply{i / (i - 1)}
 
 		} else if req == cmdCallNoReply {
 			go func() {
@@ -125,31 +147,53 @@ func (s *gs) HandleCall(req Term, from From) (
 				Reply(from, "ok")
 			}()
 
-			return GenCallNoReply, "", ""
+			return &GsCallNoReply{}
 
 		} else if req == cmdStartTimer {
 			s.Self().SendAfter(cmdTest, 300)
 
-			return GenCallReply, "ok", ""
+			return &GsCallReply{"ok"}
 
 		} else if req == cmdStartStoppableTimer {
 			s.timer = s.Self().SendAfterWithStop(cmdTest, 500)
 
-			return GenCallReply, "ok", ""
+			return &GsCallReply{"ok"}
 
 		} else if req == cmdStopTimer {
 			s.timer.Stop()
 
-			return GenCallReply, "ok", ""
+			return &GsCallReply{"ok"}
+
+		} else if req == cmdCallBadReply {
+
+			return false
+
+		} else if req == cmdGetTimeout {
+
+			return &GsCallReply{s.gotTimeout}
+
+		} else if req == cmdCallTimeout {
+
+			s.gotTimeout = false
+
+			return &GsCallReplyTimeout{"ok", 300}
+
+		} else if req == cmdCallNoReplyTimeout {
+			go func() {
+				time.Sleep(time.Duration(100) * time.Millisecond)
+				Reply(from, "ok")
+			}()
+
+			return &GsCallNoReplyTimeout{300}
 		}
 	}
 
-	return GenCallStop,
-		fmt.Sprintf("HandleCall, unexpected: %#v\n", req), "unexpected call"
+	return &GsCallStop{
+		reason: "unexpected call",
+		reply:  fmt.Sprintf("HandleCall, unexpected: %#v\n", req)}
 }
 
-func (s *gs) HandleCast(req Term) (
-	action GenCastAction, stopReason string) {
+func (s *gs) HandleCast(req Term) Term {
 
 	switch req := req.(type) {
 	case string:
@@ -157,7 +201,7 @@ func (s *gs) HandleCast(req Term) (
 			s.i = 100
 
 		} else if req == cmdStop {
-			return GenCastStop, cmdStop
+			return &GsCastStop{cmdStop}
 
 		} else if req == cmdCrash {
 			var i int = 1
@@ -165,14 +209,29 @@ func (s *gs) HandleCast(req Term) (
 
 		} else if req == cmdCrashInStop {
 			s.crash = true
+
+		} else if req == cmdCastBadReply {
+
+			return false
+
+		} else if req == "timeout" {
+
+			s.gotTimeout = true
+
+		} else if req == cmdCastTimeout {
+
+			s.gotTimeout = false
+
+			return &GsCastNoReplyTimeout{300}
 		}
 	}
 
-	return GenCastNoreply, ""
+	return &GsCastNoReply{}
 }
 
 func (s *gs) Terminate(reason string) {
-	// fmt.Printf("Terminate: %s, need crash: %v\n", reason, s.crash)
+	// fmt.Printf("pid # %d: Terminate: %s, need crash: %v\n",
+	// 	s.Self().Id(), reason, s.crash)
 
 	if s.crash {
 		var t map[string]int
@@ -187,6 +246,17 @@ func (s *gs) Terminate(reason string) {
 func start_server(t *testing.T) {
 	var err error
 	pid, err = start(10)
+	if err != nil {
+		t.Fatalf("create server failed: %s", err.Error())
+	}
+}
+
+func start_timeout(t *testing.T) {
+	var err error
+
+	s := new(gs)
+	pid, err = Spawn(s, cmdInitTimeout)
+
 	if err != nil {
 		t.Fatalf("create server failed: %s", err.Error())
 	}
@@ -392,6 +462,276 @@ func TestCrashInStop(t *testing.T) {
 		t.Error("stop crash: %s", err)
 	}
 
-	// crash
+	// crash, stpped in any case
+	pid.Stop()
+}
+
+//
+// bad init call, cast reply -> process stopped
+//
+func TestBadInitReply(t *testing.T) {
+
+	pid, err := start_fail2()
+
+	if err == nil {
+		t.Error("server must not be started")
+	}
+
+	_, err = pid.Call(cmdTest)
+	if err == nil {
+		t.Error("server must be stopped")
+	}
+}
+
+func TestBadCallReply(t *testing.T) {
+	start_server(t)
+
+	_, err := pid.Call(cmdCallBadReply)
+	if err == nil {
+		t.Error("call must fail")
+	}
+
+	_, err = pid.Call(cmdTest)
+	if err == nil {
+		t.Error("server must be stopped")
+	}
+}
+
+func TestBadCastReply(t *testing.T) {
+	start_server(t)
+
+	err := pid.Cast(cmdCastBadReply)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = pid.Call(cmdTest) // call timeout
+	if err == nil {
+		t.Error("server must be stopped")
+	}
+}
+
+func TestBadCastReply2(t *testing.T) {
+	start_server(t)
+
+	err := pid.Cast(cmdCastBadReply)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// stop timeout | send on closed channel
+	err = pid.Stop()
+	if err == nil {
+		t.Error("server must be stopped")
+	}
+}
+
+//
+// Timeout
+//
+func TestInitTimeout(t *testing.T) {
+	start_timeout(t)
+
+	time.Sleep(time.Duration(500) * time.Millisecond)
+
+	r, err := pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != true {
+		t.Error("init timeout failed")
+	}
+
+	pid.Stop()
+}
+
+func TestCallTimeout(t *testing.T) {
+	start_server(t)
+
+	r, err := pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != false {
+		t.Error("getTimeout must return false")
+	}
+
+	_, err = pid.Call(cmdCallTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	time.Sleep(time.Duration(500) * time.Millisecond)
+
+	r, err = pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != true {
+		t.Error("call timeout failed")
+	}
+
+	pid.Stop()
+}
+
+func TestCallNoReplyTimeout(t *testing.T) {
+	start_server(t)
+
+	r, err := pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != false {
+		t.Error("getTimeout must return false")
+	}
+
+	_, err = pid.Call(cmdCallNoReplyTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	time.Sleep(time.Duration(500) * time.Millisecond)
+
+	r, err = pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != true {
+		t.Error("call timeout failed")
+	}
+
+	pid.Stop()
+}
+
+func TestCastTimeout(t *testing.T) {
+	start_server(t)
+
+	r, err := pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != false {
+		t.Error("getTimeout must return false")
+	}
+
+	err = pid.Cast(cmdCastTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	time.Sleep(time.Duration(500) * time.Millisecond)
+
+	r, err = pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != true {
+		t.Error("cast timeout failed")
+	}
+
+	pid.Stop()
+}
+
+func TestCancelInitTimeout(t *testing.T) {
+	start_timeout(t)
+
+	// any call/cast must cancel timeout
+	_, err := pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	time.Sleep(time.Duration(500) * time.Millisecond)
+
+	r, err := pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != false {
+		t.Error("cancel timeout failed")
+	}
+
+	pid.Stop()
+}
+
+func TestCancelCallTimeout(t *testing.T) {
+	start_server(t)
+
+	r, err := pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != false {
+		t.Error("getTimeout must return false")
+	}
+
+	_, err = pid.Call(cmdCallTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// any call/cast must cancel timeout
+	err = pid.Cast(cmdTest)
+	if err != nil {
+		t.Error(err)
+	}
+
+	time.Sleep(time.Duration(500) * time.Millisecond)
+
+	r, err = pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != false {
+		t.Error("call timeout failed")
+	}
+
+	pid.Stop()
+}
+
+func TestCancelCastTimeout(t *testing.T) {
+	start_server(t)
+
+	r, err := pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != false {
+		t.Error("getTimeout must return false")
+	}
+
+	err = pid.Cast(cmdCastTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// any call/cast must cancel timeout
+	err = pid.Cast(cmdTest)
+	if err != nil {
+		t.Error(err)
+	}
+
+	time.Sleep(time.Duration(500) * time.Millisecond)
+
+	r, err = pid.Call(cmdGetTimeout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r != false {
+		t.Error("cast timeout failed")
+	}
+
 	pid.Stop()
 }

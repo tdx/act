@@ -132,18 +132,22 @@ func SpawnPrefixName(
 		return nil, err
 	}
 	pid.inChan = make(chan interface{}, chanSize)
-	pid.stopChan = make(chan *stopReq)
+	pid.stopChan = make(chan *stopReq) // non buffered !!!
 
-	initCh := make(chan *genInitReply)
+	initChan := make(chan Term)
 
-	go GenServerLoop(gs, prefix, name, initCh, pid, args...)
-	initReply := <-initCh
+	go GenServerLoop(gs, prefix, name, initChan, pid, args...)
+	result := <-initChan
 
-	if initReply.action == GenInitOk {
-		return pid, nil
+	switch result := result.(type) {
+	case *GsInitOk:
+	case *GsInitStop:
+		return nil, errors.New(result.reason)
+	case error:
+		return nil, result
 	}
 
-	return nil, errors.New(initReply.reason)
+	return pid, nil
 }
 
 // Register associates the name with pid

@@ -16,46 +16,32 @@ type GenServerImpl struct {
 //
 // Init initializes process state using arbitrary arguments
 //
-func (gs *GenServerImpl) Init(
-	args ...interface{}) (
-
-	action GenInitAction,
-	stopReason string) {
+func (gs *GenServerImpl) Init(args ...interface{}) Term {
 
 	log.Printf("GenServerImpl:Init : pid: #%d, reg name: %s/%s, args: %#v",
 		gs.Self().Id(), gs.Prefix(), gs.Name(), args)
 
-	return GenInitOk, ""
+	return &GsInitOk{}
 }
 
 //
 // HandleCast handles incoming messages from `pid.Cast(data)`
 //
-func (gs *GenServerImpl) HandleCast(
-	req Term) (
-
-	action GenCastAction,
-	stopReason string) {
+func (gs *GenServerImpl) HandleCast(req Term) Term {
 
 	log.Printf("GenServerImpl:HandleCast : %#v", req)
 
-	return GenCastNoreply, ""
+	return &GsCastNoReply{}
 }
 
 //
 // HandleCall handles incoming messages from `pid.Call(data, from)`
 //
-func (gs *GenServerImpl) HandleCall(
-	req Term,
-	from From) (
-
-	action GenCallAction,
-	reply Term,
-	stopReason string) {
+func (gs *GenServerImpl) HandleCall(req Term, from From) Term {
 
 	log.Printf("GenServerImpl:HandleCall : %#v, From: %#v", req, from)
 
-	return GenCallReply, "ok", ""
+	return &GsCallReply{"ok"}
 }
 
 //

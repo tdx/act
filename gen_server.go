@@ -4,56 +4,100 @@ import (
 	"errors"
 	"fmt"
 	// "runtime"
+	"time"
 )
-
-type GenInitAction int
-type GenCastAction int
-type GenCallAction int
 
 const (
-	// init
-	GenInitOk   GenInitAction = 0
-	GenInitStop GenInitAction = 1
-
-	// cast
-	GenCastNoreply GenCastAction = 2
-	GenCastStop    GenCastAction = 3
-
-	// call
-	GenCallReply   GenCallAction = 4
-	GenCallNoReply GenCallAction = 5
-	GenCallStop    GenCallAction = 6
+	defaultCallTimeoutMs uint32 = 5000
 )
 
-/*
-  ok
-  {stop, Reason}
-*/
-type genInitReply struct {
-	action GenInitAction
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
+//
+// ok
+// {ok, Timeout}
+// {stop, Reason}
+//
+type GsInitOk struct {
+}
+
+type GsInitOkTimeout struct {
+	timeout uint32
+}
+
+type GsInitStop struct {
 	reason string
 }
 
-/*
-  noreply
-  {stop, Reason}
-*/
+// ---------------------------------------------------------------------------
+// Cast
+// ---------------------------------------------------------------------------
+//
+// noreply
+// {noreply, Timeout}
+// {stop, Reason}
+//
+type GsCastNoReply struct {
+}
+
+type GsCastNoReplyTimeout struct {
+	timeout uint32
+}
+
+type GsCastStop struct {
+	reason string
+}
+
+// ---------------------------------------------------------------------------
+// Call
+// ---------------------------------------------------------------------------
+//
+// {reply, Reply}
+// {reply, Reply, Timeout}
+// noreply
+// {noreply, Timeout}
+// {stop, Reason, Reply}
+//
+type GsCallReply struct {
+	reply Term
+}
+
+type GsCallReplyTimeout struct {
+	reply   Term
+	timeout uint32
+}
+
+type GsCallNoReply struct {
+}
+
+type GsCallNoReplyTimeout struct {
+	timeout uint32
+}
+
+type GsCallStop struct {
+	reason string
+	reply  Term
+}
+
+//
+// Types to communicate with gen_server
+//
+
+// Cast arg
 type genReq struct {
 	data Term
 }
 
 type From chan<- Term
 
-/*
-  noreply
-  {reply, Reply}
-  {stop, Reason}
-*/
+// Call arg
 type genCallReq struct {
 	data      Term
 	replyChan From
 }
 
+// Stop arg
 type stopReq struct {
 	replyChan chan<- bool
 }
@@ -62,13 +106,9 @@ type stopReq struct {
 // GenServer interface
 //
 type GenServer interface {
-	Init(args ...interface{}) (action GenInitAction, stopReason string)
-
-	HandleCast(req Term) (action GenCastAction, stopReason string)
-
-	HandleCall(req Term, from From) (
-		action GenCallAction, reply Term, stopReason string)
-
+	Init(args ...interface{}) (result Term)
+	HandleCall(req Term, from From) (result Term)
+	HandleCast(req Term) (result Term)
 	Terminate(reason string)
 
 	// returns process-related options
@@ -87,10 +127,11 @@ type GenServer interface {
 func GenServerLoop(
 	gs GenServer,
 	prefix, name string,
-	initCh chan *genInitReply,
+	initChan chan Term,
 	pid *Pid,
 	args ...interface{}) {
 
+	var timer *Timer
 	var replyCall chan<- Term
 	var replyStop chan<- bool
 	inCall := false
@@ -98,6 +139,10 @@ func GenServerLoop(
 	inTerminate := false
 
 	defer func() {
+
+		pid.closePidChannels()
+		timer.Stop()
+
 		if r := recover(); r != nil {
 
 			fmt.Printf("pid #%d/%s/%s: GenServer recovered: %#v\n",
@@ -112,7 +157,7 @@ func GenServerLoop(
 			}
 
 			if inCall {
-				replyCall <- fmt.Errorf("crashed: #v", r)
+				replyCall <- fmt.Errorf("crashed: %#v", r)
 			}
 
 			if inStop {
@@ -121,19 +166,27 @@ func GenServerLoop(
 		}
 
 		UnregisterPrefix(prefix, name)
-		pid.closePidChannels()
 	}()
 
 	gs.setPid(pid)
 	gs.setPrefix(prefix)
 	gs.setName(name)
 
-	action, reason := gs.Init(args...)
+	result := gs.Init(args...)
 
-	nLog("init action: %#v, reason: %#v", action, reason)
+	nLog("init result: %#v", result)
 
-	initCh <- &genInitReply{action, reason}
-	if action == GenInitStop {
+	switch r := result.(type) {
+	case *GsInitOk:
+		initChan <- result
+	case *GsInitOkTimeout:
+		initChan <- result
+		timer = pid.SendAfterWithStop("timeout", r.timeout)
+	case *GsInitStop:
+		initChan <- result
+		return
+	default:
+		initChan <- fmt.Errorf("Init bad reply: %#v", r)
 		return
 	}
 
@@ -146,38 +199,69 @@ func GenServerLoop(
 		select {
 		case m := <-pid.inChan:
 
+			timer.Stop()
+
 			switch m := m.(type) {
+
+			// Call
 			case *genCallReq:
-				nLog("call message: %#v", m)
 
 				inCall = true
 				replyCall = m.replyChan
 
-				action, reply, reason := gs.HandleCall(m.data, m.replyChan)
-				nLog("call action: %#v, reply: %#v", action, reply)
+				nLog("call message: %#v", m)
+				result := gs.HandleCall(m.data, m.replyChan)
+				nLog("call result: %#v", result)
 
-				if action != GenCallNoReply {
-					m.replyChan <- reply
-				}
-
-				if action == GenCallStop {
+				switch result := result.(type) {
+				case *GsCallReply:
+					m.replyChan <- result.reply
+				case *GsCallReplyTimeout:
+					m.replyChan <- result.reply
+					timer = pid.SendAfterWithStop("timeout", result.timeout)
+				case *GsCallNoReply:
+				case *GsCallNoReplyTimeout:
+					timer = pid.SendAfterWithStop("timeout", result.timeout)
+				case *GsCallStop:
 					inTerminate = true
-					gs.Terminate(reason)
+					m.replyChan <- result.reply
+					gs.Terminate(result.reason)
+					return
+				default:
+					reply := fmt.Sprintf("HanelCall bad reply: %#v", result)
+					m.replyChan <- errors.New(reply)
+					inTerminate = true
+					gs.Terminate(reply)
 					return
 				}
-			case *genReq:
-				nLog("cast message: %#v", m)
-				action, reason := gs.HandleCast(m.data)
-				nLog("cast action: %#v", action)
 
-				if action == GenCastStop {
+			// Cast
+			case *genReq:
+
+				nLog("cast message: %#v", m)
+				result := gs.HandleCast(m.data)
+				nLog("cast result: %#v", result)
+
+				switch result := result.(type) {
+				case *GsCastNoReply:
+				case *GsCastNoReplyTimeout:
+					timer = pid.SendAfterWithStop("timeout", result.timeout)
+				case *GsCastStop:
 					inTerminate = true
-					gs.Terminate(reason)
+					gs.Terminate(result.reason)
+					return
+				default:
+					inTerminate = true
+					gs.Terminate(
+						fmt.Sprintf("HanelCast bad reply: %#v", result))
 					return
 				}
 			}
 
+		// Stop
 		case m := <-pid.stopChan:
+
+			timer.Stop()
 
 			inStop = true
 			replyStop = m.replyChan
@@ -185,6 +269,7 @@ func GenServerLoop(
 			nLog("stop message")
 			inTerminate = true
 			gs.Terminate("stop")
+
 			m.replyChan <- true
 
 			return
@@ -206,20 +291,30 @@ func (pid *Pid) Call(data Term) (reply Term, err error) {
 		}
 	}()
 
-	if pid != nil {
-		if pid.inChan != nil {
-			replyChan := make(chan Term)
-			pid.inChan <- &genCallReq{data, replyChan}
-			replyTerm := <-replyChan
+	if pid != nil && pid.inChan != nil {
 
-			// call crashed ?
-			switch err := replyTerm.(type) {
-			case error:
-				return nil, err
-			}
+		replyChan := make(chan Term)
+		pid.inChan <- &genCallReq{data, replyChan}
 
-			return replyTerm, nil
+		var replyTerm Term
+
+		ticker := time.NewTicker(
+			time.Duration(defaultCallTimeoutMs) * time.Millisecond)
+		defer ticker.Stop()
+
+		select {
+		case replyTerm = <-replyChan:
+		case <-ticker.C:
+			return nil, errors.New("timeout")
 		}
+
+		// call crashed ?
+		switch err := replyTerm.(type) {
+		case error:
+			return nil, err
+		}
+
+		return replyTerm, nil
 	}
 
 	return nil, errors.New(NoProc)
@@ -252,14 +347,13 @@ func (pid *Pid) Stop() (err error) {
 		}
 	}()
 
-	if pid != nil {
-		if pid.stopChan != nil {
-			replyChan := make(chan bool)
-			pid.stopChan <- &stopReq{replyChan}
-			<-replyChan
+	if pid != nil && pid.stopChan != nil {
 
-			return nil
-		}
+		replyChan := make(chan bool)
+		pid.stopChan <- &stopReq{replyChan}
+		<-replyChan
+
+		return nil
 	}
 
 	return errors.New(NoProc)
