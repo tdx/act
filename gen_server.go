@@ -140,7 +140,8 @@ func GenServerLoop(
 
 	defer func() {
 
-		pid.closePidChannels()
+		pid.flushMessages()
+		pid.closeChannels()
 		timer.Stop()
 
 		if r := recover(); r != nil {
@@ -212,6 +213,8 @@ func GenServerLoop(
 				nLog("call message: %#v", m)
 				result := gs.HandleCall(m.data, m.replyChan)
 				nLog("call result: %#v", result)
+
+				inCall = false
 
 				switch result := result.(type) {
 				case *GsCallReply:
@@ -305,7 +308,13 @@ func (pid *Pid) Call(data Term) (reply Term, err error) {
 		select {
 		case replyTerm = <-replyChan:
 		case <-ticker.C:
+			close(replyChan)
 			return nil, errors.New("timeout")
+		}
+
+		// server stopped
+		if replyTerm == nil {
+			return nil, errors.New(NoProc)
 		}
 
 		// call crashed ?
@@ -357,4 +366,32 @@ func (pid *Pid) Stop() (err error) {
 	}
 
 	return errors.New(NoProc)
+}
+
+// ---------------------------------------------------------------------------
+func (pid *Pid) closeChannels() {
+	if pid != nil {
+		close(pid.inChan)
+		close(pid.stopChan)
+	}
+}
+
+func (pid *Pid) flushMessages() {
+	if pid == nil {
+		return
+	}
+
+	n := len(pid.inChan)
+L:
+	for i := 0; i < n; n++ {
+		select {
+		case m := <-pid.inChan:
+			switch m := m.(type) {
+			case *genCallReq:
+				close(m.replyChan)
+			}
+		default:
+			break L
+		}
+	} // for
 }

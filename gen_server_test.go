@@ -40,6 +40,8 @@ const (
 	cmdCallTimeout        string = "callTimeout"
 	cmdCallNoReplyTimeout string = "callNoReplyTimeout"
 	cmdCastTimeout        string = "castTimeout"
+
+	cmdLongCall string = "cmdLongCall"
 )
 
 var pid *Pid
@@ -185,6 +187,12 @@ func (s *gs) HandleCall(req Term, from From) Term {
 			}()
 
 			return &GsCallNoReplyTimeout{300}
+
+		} else if req == cmdLongCall {
+
+			time.Sleep(time.Duration(6) * time.Second)
+
+			return &GsCallReply{"ok"}
 		}
 	}
 
@@ -519,10 +527,44 @@ func TestBadCastReply2(t *testing.T) {
 		t.Error(err)
 	}
 
+	for i := 0; i < 10; i++ {
+		go func() {
+			_, err = pid.Call(cmdTest) // call timeout
+			if err == nil {
+				t.Error("server must be stopped")
+			}
+		}()
+	}
+
+	time.Sleep(time.Duration(1) * time.Second)
+}
+
+func TestBadCastReply3(t *testing.T) {
+	start_server(t)
+
+	err := pid.Cast(cmdCastBadReply)
+	if err != nil {
+		t.Error(err)
+	}
+
 	// stop timeout | send on closed channel
 	err = pid.Stop()
 	if err == nil {
 		t.Error("server must be stopped")
+	}
+}
+
+func TestLongCall(t *testing.T) {
+	start_server(t)
+
+	_, err := pid.Call(cmdLongCall) // err = timeout
+	if err == nil {
+		t.Error("call must fail with 'timeout' reason")
+	}
+
+	err = pid.Stop() // pid #1: stop recovered: "send on closed channel"
+	if err == nil {
+		t.Error("stop must fail")
 	}
 }
 

@@ -300,13 +300,6 @@ func (n *act) makePid(p, a string) (*Pid, error) {
 	return resp.pid, resp.err
 }
 
-func (pid *Pid) closePidChannels() {
-	if pid != nil {
-		close(pid.inChan)
-		close(pid.stopChan)
-	}
-}
-
 func (pid *Pid) Id() uint64 {
 	if pid == nil {
 		return 0
