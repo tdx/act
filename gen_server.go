@@ -382,7 +382,6 @@ func (pid *Pid) flushMessages() {
 	}
 
 	n := len(pid.inChan)
-L:
 	for i := 0; i < n; n++ {
 		select {
 		case m := <-pid.inChan:
@@ -390,8 +389,6 @@ L:
 			case *genCallReq:
 				close(m.replyChan)
 			}
-		default:
-			break L
 		}
-	} // for
+	}
 }

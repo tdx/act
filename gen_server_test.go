@@ -547,7 +547,7 @@ func TestBadCastReply3(t *testing.T) {
 		t.Error(err)
 	}
 
-	// stop timeout | send on closed channel
+	// send on closed channel
 	err = pid.Stop()
 	if err == nil {
 		t.Error("server must be stopped")
