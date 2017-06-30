@@ -197,8 +197,8 @@ func (s *gs) HandleCall(req Term, from From) Term {
 	}
 
 	return &GsCallStop{
-		reason: "unexpected call",
-		reply:  fmt.Sprintf("HandleCall, unexpected: %#v\n", req)}
+		Reason: "unexpected call",
+		Reply:  fmt.Sprintf("HandleCall, unexpected: %#v\n", req)}
 }
 
 func (s *gs) HandleCast(req Term) Term {

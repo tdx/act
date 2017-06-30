@@ -142,7 +142,7 @@ func SpawnPrefixName(
 	switch result := result.(type) {
 	case *GsInitOk:
 	case *GsInitStop:
-		return nil, errors.New(result.reason)
+		return nil, errors.New(result.Reason)
 	case error:
 		return nil, result
 	}
