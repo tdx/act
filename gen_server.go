@@ -102,6 +102,7 @@ type genCallReq struct {
 
 // Stop arg
 type stopReq struct {
+	reason    string
 	replyChan chan<- bool
 }
 
@@ -273,9 +274,9 @@ func GenServerLoop(
 			inStop = true
 			replyStop = m.replyChan
 
-			nLog("stop message")
+			nLog("stop message: %s", m.reason)
 			inTerminate = true
-			gs.Terminate("stop")
+			gs.Terminate(m.reason)
 
 			m.replyChan <- true
 
@@ -352,7 +353,11 @@ func (pid *Pid) Cast(data Term) (err error) {
 	return errors.New(NoProc)
 }
 
-func (pid *Pid) Stop() (err error) {
+func (pid *Pid) Stop() error {
+	return pid.StopReason("stop")
+}
+
+func (pid *Pid) StopReason(reason string) (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -363,7 +368,7 @@ func (pid *Pid) Stop() (err error) {
 	if pid != nil && pid.stopChan != nil {
 
 		replyChan := make(chan bool)
-		pid.stopChan <- &stopReq{replyChan}
+		pid.stopChan <- &stopReq{reason, replyChan}
 		<-replyChan
 
 		return nil
