@@ -121,7 +121,7 @@ type GenServer interface {
 	// private
 	setPid(pid *Pid)
 	setPrefix(prefix string)
-	setName(name string)
+	setName(name interface{})
 }
 
 // ProcessLoop executes during whole time of process life.
@@ -129,7 +129,8 @@ type GenServer interface {
 // using methods of implementation
 func GenServerLoop(
 	gs GenServer,
-	prefix, name string,
+	prefix string,
+	name interface{},
 	initChan chan Term,
 	pid *Pid,
 	args ...interface{}) {
@@ -149,7 +150,7 @@ func GenServerLoop(
 
 		if r := recover(); r != nil {
 
-			fmt.Printf("pid #%d/%s/%s: GenServer recovered: %#v\n",
+			fmt.Printf("pid #%d/%s/%v: GenServer recovered: %#v\n",
 				pid.Id(), prefix, name, r)
 			// trace := make([]byte, 1024)
 			// count := runtime.Stack(trace, true)

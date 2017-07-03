@@ -1,6 +1,7 @@
 package act
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -9,8 +10,9 @@ import (
 //
 type GenServerImpl struct {
 	GenServer
-	self         *Pid   // Pid of process
-	prefix, name string // Registered name of process
+	self   *Pid // Pid of process
+	prefix string
+	name   interface{} // Registered name of process
 }
 
 //
@@ -19,7 +21,7 @@ type GenServerImpl struct {
 func (gs *GenServerImpl) Init(args ...interface{}) Term {
 
 	log.Printf("GenServerImpl:Init : pid: #%d, reg name: %s/%s, args: %#v",
-		gs.Self().Id(), gs.Prefix(), gs.Name(), args)
+		gs.Self().Id(), gs.Prefix(), gs.NameStr(), args)
 
 	return &GsInitOk{}
 }
@@ -68,7 +70,7 @@ func (gs *GenServerImpl) setPrefix(prefix string) {
 	gs.prefix = prefix
 }
 
-func (gs *GenServerImpl) setName(name string) {
+func (gs *GenServerImpl) setName(name interface{}) {
 	gs.name = name
 }
 
@@ -80,6 +82,19 @@ func (gs *GenServerImpl) Prefix() string {
 	return gs.prefix
 }
 
-func (gs *GenServerImpl) Name() string {
+func (gs *GenServerImpl) Name() interface{} {
 	return gs.name
+}
+
+func (gs *GenServerImpl) NameStr() string {
+	switch name := gs.name.(type) {
+	case string:
+		return name
+	default:
+		if name == nil {
+			return ""
+		} else {
+			return fmt.Sprintf("%v", name)
+		}
+	}
 }

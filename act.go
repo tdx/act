@@ -25,30 +25,30 @@ type makePidResp struct {
 
 type makePidReq struct {
 	prefix  string
-	name    string
+	name    interface{}
 	replyTo chan<- makePidResp
 }
 
 type regNameReq struct {
 	prefix  string
-	name    string
+	name    interface{}
 	pid     *Pid
 	replyTo chan<- bool
 }
 
 type unregNameReq struct {
 	prefix  string
-	name    string
+	name    interface{}
 	replyTo chan<- bool
 }
 
 type whereNameReq struct {
 	prefix  string
-	name    string
+	name    interface{}
 	replyTo chan<- *Pid
 }
 
-type regMap map[string]*Pid
+type regMap map[interface{}]*Pid
 type wherePrefixReq struct {
 	prefix  string
 	replyTo chan<- regMap
@@ -108,7 +108,7 @@ func nLog(f string, a ...interface{}) {
 func Spawn(gs GenServer, args ...interface{}) (*Pid, error) {
 
 	prefix := ""
-	name := ""
+	var name interface{} = nil
 
 	pid, err := SpawnPrefixName(gs, prefix, name, args...)
 
@@ -117,7 +117,8 @@ func Spawn(gs GenServer, args ...interface{}) (*Pid, error) {
 
 func SpawnPrefixName(
 	gs GenServer,
-	prefix, name string,
+	prefix string,
+	name interface{},
 	args ...interface{}) (*Pid, error) {
 
 	options := gs.Options()
@@ -151,7 +152,7 @@ func SpawnPrefixName(
 }
 
 // Register associates the name with pid
-func Register(name string, pid *Pid) error {
+func Register(name interface{}, pid *Pid) error {
 	replyChan := make(chan bool)
 	r := regNameReq{name: name, pid: pid, replyTo: replyChan}
 	env.registry.regNameChan <- r
@@ -161,10 +162,10 @@ func Register(name string, pid *Pid) error {
 		return nil
 	}
 
-	return fmt.Errorf("name '%s' already registered", name)
+	return fmt.Errorf("name '%v' already registered", name)
 }
 
-func RegisterPrefix(prefix, name string, pid *Pid) error {
+func RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
 	replyChan := make(chan bool)
 	r := regNameReq{prefix: prefix, name: name, pid: pid, replyTo: replyChan}
 	env.registry.regNameChan <- r
@@ -174,19 +175,19 @@ func RegisterPrefix(prefix, name string, pid *Pid) error {
 		return nil
 	}
 
-	return fmt.Errorf("name '%s/%s' already registered", name, prefix)
+	return fmt.Errorf("name '%s/%v' already registered", prefix, name)
 }
 
 // Unregister removes the registered name
-func Unregister(name string) {
+func Unregister(name interface{}) {
 	replyChan := make(chan bool)
 	r := unregNameReq{name: name, replyTo: replyChan}
 	env.registry.unregNameChan <- r
 	<-replyChan
 }
 
-func UnregisterPrefix(prefix, name string) {
-	if prefix == "" && name == "" {
+func UnregisterPrefix(prefix string, name interface{}) {
+	if prefix == "" && name == nil {
 		return
 	}
 
@@ -197,13 +198,13 @@ func UnregisterPrefix(prefix, name string) {
 }
 
 // Whereis returns pid of registered process
-func Whereis(name string) *Pid {
+func Whereis(name interface{}) *Pid {
 	pid := WhereisPrefix("", name)
 
 	return pid
 }
 
-func WhereisPrefix(prefix, name string) *Pid {
+func WhereisPrefix(prefix string, name interface{}) *Pid {
 	replyChan := make(chan *Pid)
 	r := whereNameReq{prefix: prefix, name: name, replyTo: replyChan}
 	env.registry.whereNameChan <- r
@@ -240,12 +241,12 @@ func (n *act) registrator() {
 			resp.pid = &newPid
 
 			// register name with prefix if not empty
-			if req.name != "" {
+			if req.name != nil {
 				if _, ok := n.registered[req.prefix]; ok {
 					// map with prefix exists
 					if _, ok := n.registered[req.prefix][req.name]; ok {
 						// name already registered
-						resp.err = fmt.Errorf("name '%s/%s' already registered",
+						resp.err = fmt.Errorf("name '%s/%v' already registered",
 							req.prefix, req.name)
 					} else {
 						n.registered[req.prefix][req.name] = resp.pid
@@ -292,7 +293,7 @@ func (n *act) registrator() {
 	}
 }
 
-func (n *act) makePid(p, a string) (*Pid, error) {
+func (n *act) makePid(p string, a interface{}) (*Pid, error) {
 	replyChan := make(chan makePidResp)
 	n.registry.makePidChan <- makePidReq{prefix: p, name: a, replyTo: replyChan}
 	resp := <-replyChan
