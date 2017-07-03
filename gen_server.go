@@ -11,6 +11,9 @@ const (
 	defaultCallTimeoutMs uint32 = 5000
 )
 
+type GsTimeout struct {
+}
+
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
@@ -182,7 +185,7 @@ func GenServerLoop(
 		initChan <- result
 	case *GsInitOkTimeout:
 		initChan <- result
-		timer = pid.SendAfterWithStop("timeout", r.Timeout)
+		timer = pid.SendAfterWithStop(GsTimeout{}, r.Timeout)
 	case *GsInitStop:
 		initChan <- result
 		return
@@ -221,10 +224,10 @@ func GenServerLoop(
 					m.replyChan <- result.Reply
 				case *GsCallReplyTimeout:
 					m.replyChan <- result.Reply
-					timer = pid.SendAfterWithStop("timeout", result.Timeout)
+					timer = pid.SendAfterWithStop(GsTimeout{}, result.Timeout)
 				case *GsCallNoReply:
 				case *GsCallNoReplyTimeout:
-					timer = pid.SendAfterWithStop("timeout", result.Timeout)
+					timer = pid.SendAfterWithStop(GsTimeout{}, result.Timeout)
 				case *GsCallStop:
 					inTerminate = true
 					m.replyChan <- result.Reply
@@ -248,7 +251,7 @@ func GenServerLoop(
 				switch result := result.(type) {
 				case *GsCastNoReply:
 				case *GsCastNoReplyTimeout:
-					timer = pid.SendAfterWithStop("timeout", result.Timeout)
+					timer = pid.SendAfterWithStop(GsTimeout{}, result.Timeout)
 				case *GsCastStop:
 					inTerminate = true
 					gs.Terminate(result.Reason)

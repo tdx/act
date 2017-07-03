@@ -204,6 +204,9 @@ func (s *gs) HandleCall(req Term, from From) Term {
 func (s *gs) HandleCast(req Term) Term {
 
 	switch req := req.(type) {
+	case GsTimeout:
+		s.gotTimeout = true
+
 	case string:
 		if req == cmdTest {
 			s.i = 100
@@ -221,10 +224,6 @@ func (s *gs) HandleCast(req Term) Term {
 		} else if req == cmdCastBadReply {
 
 			return false
-
-		} else if req == "timeout" {
-
-			s.gotTimeout = true
 
 		} else if req == cmdCastTimeout {
 
