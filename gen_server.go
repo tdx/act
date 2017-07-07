@@ -115,10 +115,6 @@ type GenServer interface {
 	HandleCast(req Term) (result Term)
 	Terminate(reason string)
 
-	// returns process-related options
-	// chan-size : int
-	Options() (options map[string]interface{})
-
 	// private
 	setPid(pid *Pid)
 	setPrefix(prefix string)

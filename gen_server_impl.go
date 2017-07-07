@@ -53,15 +53,6 @@ func (gs *GenServerImpl) Terminate(reason string) {
 	log.Printf("GenServerImpl:Terminate : %#v", reason)
 }
 
-//
-// Options returns map of default process-related options
-//
-func (gs *GenServerImpl) Options() map[string]interface{} {
-	return map[string]interface{}{
-		"chan-size": 100, // size of channel for messages
-	}
-}
-
 func (gs *GenServerImpl) setPid(pid *Pid) {
 	gs.self = pid
 }

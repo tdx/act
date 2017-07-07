@@ -18,14 +18,20 @@ type Pid struct {
 	stopChan chan *stopReq
 }
 
+type Opts struct {
+	Prefix                   string
+	Name                     interface{}
+	Chan_size                uint32
+	Return_pid_if_registered bool
+}
+
 type makePidResp struct {
 	pid *Pid
 	err error
 }
 
 type makePidReq struct {
-	prefix  string
-	name    interface{}
+	opts    *Opts
 	replyTo chan<- makePidResp
 }
 
@@ -105,39 +111,44 @@ func nLog(f string, a ...interface{}) {
 // ---------------------------------------------------------------------------
 // Spawn new GenServer process
 // ---------------------------------------------------------------------------
-func Spawn(gs GenServer, args ...interface{}) (*Pid, error) {
+func Spawn(gs GenServer, args ...interface{}) (pid *Pid, err error) {
 
-	prefix := ""
-	var name interface{} = nil
+	pid, err = SpawnOpts(gs, &Opts{}, args...)
 
-	pid, err := SpawnPrefixName(gs, prefix, name, args...)
-
-	return pid, err
+	return
 }
 
 func SpawnPrefixName(
 	gs GenServer,
 	prefix string,
 	name interface{},
-	args ...interface{}) (*Pid, error) {
+	args ...interface{}) (pid *Pid, err error) {
 
-	options := gs.Options()
+	opts := &Opts{
+		Prefix: prefix,
+		Name:   name,
+	}
+	pid, err = SpawnOpts(gs, opts, args...)
 
-	chanSize, ok := options["chan-size"].(int)
-	if !ok {
-		chanSize = 100
+	return
+}
+
+func SpawnOpts(gs GenServer, opts *Opts, args ...interface{}) (*Pid, error) {
+
+	if opts.Chan_size == 0 {
+		opts.Chan_size = 100
 	}
 
-	pid, err := env.makePid(prefix, name)
+	pid, err := env.makePid(opts)
 	if err != nil {
 		return nil, err
 	}
-	pid.inChan = make(chan interface{}, chanSize)
-	pid.stopChan = make(chan *stopReq) // non buffered !!!
+	pid.inChan = make(chan interface{}, opts.Chan_size)
+	pid.stopChan = make(chan *stopReq)
 
 	initChan := make(chan Term)
 
-	go GenServerLoop(gs, prefix, name, initChan, pid, args...)
+	go GenServerLoop(gs, opts.Prefix, opts.Name, initChan, pid, args...)
 	result := <-initChan
 
 	switch result := result.(type) {
@@ -232,30 +243,39 @@ func (n *act) registrator() {
 	for {
 		select {
 		case req := <-n.registry.makePidChan:
-			n.serial += 1
+			// n.serial += 1
 
 			var newPid Pid
-			newPid.id = n.serial
+			newPid.id = n.serial + 1
 
 			var resp makePidResp
 			resp.pid = &newPid
 
 			// register name with prefix if not empty
-			if req.name != nil {
-				if _, ok := n.registered[req.prefix]; ok {
+			if req.opts.Name != nil {
+				if _, ok := n.registered[req.opts.Prefix]; ok {
 					// map with prefix exists
-					if _, ok := n.registered[req.prefix][req.name]; ok {
-						// name already registered
-						resp.err = fmt.Errorf("name '%s/%v' already registered",
-							req.prefix, req.name)
+					if pid, ok := n.registered[req.opts.Prefix][req.opts.Name]; ok {
+						if req.opts.Return_pid_if_registered == true {
+							resp.pid = pid
+						} else {
+							// name already registered
+							resp.err =
+								fmt.Errorf("name '%s/%v' already registered",
+									req.opts.Prefix, req.opts.Name)
+						}
 					} else {
-						n.registered[req.prefix][req.name] = resp.pid
+						n.registered[req.opts.Prefix][req.opts.Name] = resp.pid
 					}
 
 				} else { // no maps with prefix
-					n.registered[req.prefix] = make(regMap)
-					n.registered[req.prefix][req.name] = resp.pid
+					n.registered[req.opts.Prefix] = make(regMap)
+					n.registered[req.opts.Prefix][req.opts.Name] = resp.pid
 				}
+			}
+
+			if resp.err == nil {
+				n.serial += 1
 			}
 
 			req.replyTo <- resp
@@ -293,9 +313,9 @@ func (n *act) registrator() {
 	}
 }
 
-func (n *act) makePid(p string, a interface{}) (*Pid, error) {
+func (n *act) makePid(opts *Opts) (*Pid, error) {
 	replyChan := make(chan makePidResp)
-	n.registry.makePidChan <- makePidReq{prefix: p, name: a, replyTo: replyChan}
+	n.registry.makePidChan <- makePidReq{opts: opts, replyTo: replyChan}
 	resp := <-replyChan
 
 	return resp.pid, resp.err
