@@ -260,6 +260,7 @@ func (n *act) registrator() {
 							resp.pid = pid
 						} else {
 							// name already registered
+							resp.pid = nil
 							resp.err =
 								fmt.Errorf("name '%s/%v' already registered",
 									req.opts.Prefix, req.opts.Name)
