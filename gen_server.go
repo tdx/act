@@ -141,6 +141,7 @@ func GenServerLoop(
 
 	defer func() {
 
+		UnregisterPrefix(prefix, name)
 		timer.Stop()
 		pid.flushMessages(prefix, name)
 		pid.closeChannels(prefix, name)
@@ -167,7 +168,6 @@ func GenServerLoop(
 			}
 		}
 
-		UnregisterPrefix(prefix, name)
 	}()
 
 	gs.setPid(pid)
