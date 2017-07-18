@@ -243,7 +243,7 @@ func (n *act) registrator() {
 	for {
 		select {
 		case req := <-n.registry.makePidChan:
-			// n.serial += 1
+			newPidCreated := true
 
 			var newPid Pid
 			newPid.id = n.serial + 1
@@ -258,6 +258,7 @@ func (n *act) registrator() {
 					if pid, ok := n.registered[req.opts.Prefix][req.opts.Name]; ok {
 						if req.opts.Return_pid_if_registered == true {
 							resp.pid = pid
+							newPidCreated = false
 						} else {
 							// name already registered
 							resp.pid = nil
@@ -275,7 +276,7 @@ func (n *act) registrator() {
 				}
 			}
 
-			if resp.err == nil {
+			if newPidCreated {
 				n.serial += 1
 			}
 
