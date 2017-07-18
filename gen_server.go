@@ -141,9 +141,9 @@ func GenServerLoop(
 
 	defer func() {
 
-		pid.flushMessages()
-		pid.closeChannels()
 		timer.Stop()
+		pid.flushMessages(prefix, name)
+		pid.closeChannels(prefix, name)
 
 		if r := recover(); r != nil {
 
@@ -374,17 +374,33 @@ func (pid *Pid) StopReason(reason string) (err error) {
 }
 
 // ---------------------------------------------------------------------------
-func (pid *Pid) closeChannels() {
-	if pid != nil {
-		close(pid.inChan)
-		close(pid.stopChan)
-	}
-}
-
-func (pid *Pid) flushMessages() {
+func (pid *Pid) closeChannels(prefix string, name interface{}) {
 	if pid == nil {
 		return
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("pid #%d/%s/%v: closeChannels recovered: %#v\n",
+				pid.Id(), prefix, name, r)
+		}
+	}()
+
+	close(pid.inChan)
+	close(pid.stopChan)
+}
+
+func (pid *Pid) flushMessages(prefix string, name interface{}) {
+	if pid == nil {
+		return
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("pid #%d/%s/%v: flushMessages recovered: %#v\n",
+				pid.Id(), prefix, name, r)
+		}
+	}()
 
 	n := len(pid.inChan)
 	for i := 0; i < n; n++ {

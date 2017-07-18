@@ -20,7 +20,7 @@ func BenchmarkStartRegisteredServer(b *testing.B) {
 	}
 }
 
-func BenchmarkCall(b *testing.B) {
+func BenchmarkCallPid(b *testing.B) {
 	pid, err := run_server()
 	if err == nil {
 		req := &reqInc{}
@@ -30,7 +30,30 @@ func BenchmarkCall(b *testing.B) {
 	}
 }
 
-func BenchmarkCast(b *testing.B) {
+func BenchmarkCallName(b *testing.B) {
+	prefix := "gsGroup"
+	name := "test_proc_123"
+	opts := &Opts{
+		Prefix: prefix,
+		Name:   name,
+		Return_pid_if_registered: true}
+
+	start_server_opts(b, opts)
+
+	var pid *Pid
+	req := &reqInc{}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pid = WhereisPrefix(prefix, name)
+		if pid == nil {
+			b.Fatal("pid == nil")
+		}
+		pid.Call(req)
+	}
+}
+
+func BenchmarkCastPid(b *testing.B) {
 	pid, err := run_server()
 	if err == nil {
 		for i := 0; i < b.N; i++ {

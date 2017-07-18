@@ -135,3 +135,26 @@ func TestRegisterInSpawn(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestRegisterInOpts(t *testing.T) {
+	prefix := "gsGroup"
+	name := "proc2"
+
+	opts := &Opts{
+		Prefix: prefix,
+		Name:   name,
+	}
+
+	s := new(gsi)
+	_, err := SpawnOpts(s, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pid := WhereisPrefix(prefix, name)
+	if pid == nil {
+		t.Fatal("pid must be registered")
+	}
+
+	pid.Stop()
+}

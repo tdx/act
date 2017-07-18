@@ -269,6 +269,17 @@ func start_timeout(t *testing.T) {
 	}
 }
 
+func start_server_opts(b *testing.B, opts *Opts) {
+	var err error
+
+	s := new(gs)
+	pid, err = SpawnOpts(s, opts)
+
+	if err != nil {
+		b.Fatalf("create server failed: %s", err.Error())
+	}
+}
+
 func TestInitStop(t *testing.T) {
 	var err error
 	pid, err = start_fail()
