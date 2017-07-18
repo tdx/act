@@ -67,6 +67,12 @@ func TestTimerStop(t *testing.T) {
 		t.Errorf("stop timer failed: %s", err)
 	}
 
+	// second stop must not be failed
+	_, err = pid.Call(cmdStopTimer)
+	if err != nil {
+		t.Errorf("stop timer failed: %s", err)
+	}
+
 	r, err := inc(pid)
 	if err != nil {
 		t.Errorf("inc() failed: %s", err.Error())

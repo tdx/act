@@ -1,7 +1,6 @@
 package act
 
 import (
-	"sync"
 	"time"
 )
 
@@ -9,44 +8,33 @@ import (
 // Timer
 //
 type Timer struct {
-	sync.Mutex
-	stopChan chan bool
-	active   bool
+	ticker *time.Ticker
 }
 
 func (pid *Pid) SendAfterWithStop(data Term, timeoutMs uint32) *Timer {
-	stop := make(chan bool)
 
-	timer := Timer{stopChan: stop, active: true}
+	ticker := time.NewTicker(time.Duration(timeoutMs) * time.Millisecond)
 
 	go func() {
-		ticker := time.NewTicker(time.Duration(timeoutMs) * time.Millisecond)
 
 		select {
 		case <-ticker.C:
 			pid.Cast(data)
-			timer.Stop()
-		case <-stop:
 		}
 
 		ticker.Stop()
+
 	}()
 
-	return &timer
+	return &Timer{ticker}
 }
 
-func (timer *Timer) Stop() {
-	if timer == nil {
+func (t *Timer) Stop() {
+	if t == nil {
 		return
 	}
 
-	timer.Lock()
-	defer timer.Unlock()
-
-	if timer.active {
-		close(timer.stopChan)
-		timer.active = false
-	}
+	t.ticker.Stop()
 }
 
 func (pid *Pid) SendAfter(data Term, timeoutMs uint32) {
