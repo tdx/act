@@ -276,6 +276,8 @@ func GenServerLoop(
 
 			m.replyChan <- true
 
+			inStop = false
+
 			return
 		} // select
 	} // for
@@ -297,7 +299,7 @@ func (pid *Pid) Call(data Term) (reply Term, err error) {
 
 	if pid != nil && pid.inChan != nil {
 
-		replyChan := make(chan Term)
+		replyChan := make(chan Term, 1)
 		pid.inChan <- &genCallReq{data, replyChan}
 
 		var replyTerm Term

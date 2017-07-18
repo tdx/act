@@ -164,7 +164,7 @@ func SpawnOpts(gs GenServer, opts *Opts, args ...interface{}) (*Pid, error) {
 
 // Register associates the name with pid
 func Register(name interface{}, pid *Pid) error {
-	replyChan := make(chan bool)
+	replyChan := make(chan bool, 1)
 	r := regNameReq{name: name, pid: pid, replyTo: replyChan}
 	env.registry.regNameChan <- r
 	reply := <-replyChan
@@ -177,7 +177,7 @@ func Register(name interface{}, pid *Pid) error {
 }
 
 func RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
-	replyChan := make(chan bool)
+	replyChan := make(chan bool, 1)
 	r := regNameReq{prefix: prefix, name: name, pid: pid, replyTo: replyChan}
 	env.registry.regNameChan <- r
 	reply := <-replyChan
@@ -191,7 +191,7 @@ func RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
 
 // Unregister removes the registered name
 func Unregister(name interface{}) {
-	replyChan := make(chan bool)
+	replyChan := make(chan bool, 1)
 	r := unregNameReq{name: name, replyTo: replyChan}
 	env.registry.unregNameChan <- r
 	<-replyChan
@@ -202,7 +202,7 @@ func UnregisterPrefix(prefix string, name interface{}) {
 		return
 	}
 
-	replyChan := make(chan bool)
+	replyChan := make(chan bool, 1)
 	r := unregNameReq{prefix: prefix, name: name, replyTo: replyChan}
 	env.registry.unregNameChan <- r
 	<-replyChan
@@ -216,7 +216,7 @@ func Whereis(name interface{}) *Pid {
 }
 
 func WhereisPrefix(prefix string, name interface{}) *Pid {
-	replyChan := make(chan *Pid)
+	replyChan := make(chan *Pid, 1)
 	r := whereNameReq{prefix: prefix, name: name, replyTo: replyChan}
 	env.registry.whereNameChan <- r
 	pid := <-replyChan
@@ -226,7 +226,7 @@ func WhereisPrefix(prefix string, name interface{}) *Pid {
 
 // Returns all pids with same prefix
 func Whereare(prefix string) regMap {
-	replyChan := make(chan regMap)
+	replyChan := make(chan regMap, 1)
 	r := wherePrefixReq{prefix: prefix, replyTo: replyChan}
 	env.registry.wherePrefixChan <- r
 	regs := <-replyChan
@@ -316,7 +316,7 @@ func (n *act) registrator() {
 }
 
 func (n *act) makePid(opts *Opts) (*Pid, error) {
-	replyChan := make(chan makePidResp)
+	replyChan := make(chan makePidResp, 1)
 	n.registry.makePidChan <- makePidReq{opts: opts, replyTo: replyChan}
 	resp := <-replyChan
 
