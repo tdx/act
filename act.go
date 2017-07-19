@@ -43,9 +43,8 @@ type regNameReq struct {
 }
 
 type unregNameReq struct {
-	prefix  string
-	name    interface{}
-	replyTo chan<- bool
+	prefix string
+	name   interface{}
 }
 
 type whereNameReq struct {
@@ -191,10 +190,8 @@ func RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
 
 // Unregister removes the registered name
 func Unregister(name interface{}) {
-	replyChan := make(chan bool, 1)
-	r := unregNameReq{name: name, replyTo: replyChan}
+	r := unregNameReq{name: name}
 	env.registry.unregNameChan <- r
-	<-replyChan
 }
 
 func UnregisterPrefix(prefix string, name interface{}) {
@@ -202,10 +199,8 @@ func UnregisterPrefix(prefix string, name interface{}) {
 		return
 	}
 
-	replyChan := make(chan bool, 1)
-	r := unregNameReq{prefix: prefix, name: name, replyTo: replyChan}
+	r := unregNameReq{prefix: prefix, name: name}
 	env.registry.unregNameChan <- r
-	<-replyChan
 }
 
 // Whereis returns pid of registered process
@@ -297,7 +292,6 @@ func (n *act) registrator() {
 			if _, ok := n.registered[req.prefix]; ok {
 				delete(n.registered[req.prefix], req.name)
 			}
-			req.replyTo <- true
 
 		case req := <-n.registry.whereNameChan:
 			req.replyTo <- n.registered[req.prefix][req.name]
