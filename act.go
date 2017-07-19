@@ -251,9 +251,11 @@ func (n *act) registrator() {
 				if _, ok := n.registered[req.opts.Prefix]; ok {
 					// map with prefix exists
 					if pid, ok := n.registered[req.opts.Prefix][req.opts.Name]; ok {
+
+						newPidCreated = false
+
 						if req.opts.Return_pid_if_registered == true {
 							resp.pid = pid
-							newPidCreated = false
 						} else {
 							// name already registered
 							resp.pid = nil
