@@ -23,7 +23,7 @@ func (gs *GenServerImpl) Init(args ...interface{}) Term {
 	log.Printf("GenServerImpl:Init : pid: #%d, reg name: %s/%s, args: %#v",
 		gs.Self().Id(), gs.Prefix(), gs.NameStr(), args)
 
-	return &GsInitOk{}
+	return GsInitOk
 }
 
 //
@@ -33,7 +33,7 @@ func (gs *GenServerImpl) HandleCast(req Term) Term {
 
 	log.Printf("GenServerImpl:HandleCast : %#v", req)
 
-	return &GsCastNoReply{}
+	return GsCastNoReply
 }
 
 //

@@ -125,7 +125,7 @@ func (s *gs) Init(args ...interface{}) Term {
 		}
 	}
 
-	return &GsInitOk{}
+	return GsInitOk
 }
 
 func (s *gs) HandleCall(req Term, from From) Term {
@@ -149,22 +149,22 @@ func (s *gs) HandleCall(req Term, from From) Term {
 				Reply(from, "ok")
 			}()
 
-			return &GsCallNoReply{}
+			return GsCallNoReply
 
 		} else if req == cmdStartTimer {
 			s.Self().SendAfter(cmdTest, 300)
 
-			return &GsCallReply{"ok"}
+			return GsCallReplyOk
 
 		} else if req == cmdStartStoppableTimer {
 			s.timer = s.Self().SendAfterWithStop(cmdTest, 500)
 
-			return &GsCallReply{"ok"}
+			return GsCallReplyOk
 
 		} else if req == cmdStopTimer {
 			s.timer.Stop()
 
-			return &GsCallReply{"ok"}
+			return GsCallReplyOk
 
 		} else if req == cmdCallBadReply {
 
@@ -192,7 +192,7 @@ func (s *gs) HandleCall(req Term, from From) Term {
 
 			time.Sleep(time.Duration(6) * time.Second)
 
-			return &GsCallReply{"ok"}
+			return GsCallReplyOk
 		}
 	}
 
@@ -233,7 +233,7 @@ func (s *gs) HandleCast(req Term) Term {
 		}
 	}
 
-	return &GsCastNoReply{}
+	return GsCastNoReply
 }
 
 func (s *gs) Terminate(reason string) {

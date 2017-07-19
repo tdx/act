@@ -7,14 +7,7 @@ import (
 	"time"
 )
 
-const (
-	defaultCallTimeoutMs uint32 = 5000
-)
-
-type GsTimeout struct {
-}
-
-var gsTimeout = GsTimeout{}
+type GsTimeout int
 
 // ---------------------------------------------------------------------------
 // Init
@@ -24,8 +17,7 @@ var gsTimeout = GsTimeout{}
 // {ok, Timeout}
 // {stop, Reason}
 //
-type GsInitOk struct {
-}
+type gsInitOk int
 
 type GsInitOkTimeout struct {
 	Timeout uint32
@@ -43,8 +35,7 @@ type GsInitStop struct {
 // {noreply, Timeout}
 // {stop, Reason}
 //
-type GsCastNoReply struct {
-}
+type gsCastNoReply int
 
 type GsCastNoReplyTimeout struct {
 	Timeout uint32
@@ -64,6 +55,10 @@ type GsCastStop struct {
 // {noreply, Timeout}
 // {stop, Reason, Reply}
 //
+
+// reply "ok"
+type gsCallReplyOk int
+
 type GsCallReply struct {
 	Reply Term
 }
@@ -73,8 +68,7 @@ type GsCallReplyTimeout struct {
 	Timeout uint32
 }
 
-type GsCallNoReply struct {
-}
+type gsCallNoReply int
 
 type GsCallNoReplyTimeout struct {
 	Timeout uint32
@@ -84,6 +78,18 @@ type GsCallStop struct {
 	Reason string
 	Reply  Term
 }
+
+const (
+	defaultCallTimeoutMs uint32 = 5000
+
+	replyOk string = "ok"
+
+	gsTimeout     GsTimeout     = 0
+	GsInitOk      gsInitOk      = 1
+	GsCastNoReply gsCastNoReply = 2
+	GsCallNoReply gsCallNoReply = 3
+	GsCallReplyOk gsCallReplyOk = 4
+)
 
 //
 // Types to communicate with gen_server
@@ -181,14 +187,18 @@ func GenServerLoop(
 	nLog("init result: %#v", result)
 
 	switch r := result.(type) {
-	case *GsInitOk:
+
+	case gsInitOk:
 		initChan <- result
+
 	case *GsInitOkTimeout:
 		initChan <- result
 		timer = pid.SendAfterWithStop(gsTimeout, r.Timeout)
+
 	case *GsInitStop:
 		initChan <- result
 		return
+
 	default:
 		initChan <- fmt.Errorf("Init bad reply: %#v", r)
 		return
@@ -220,21 +230,30 @@ func GenServerLoop(
 				inCall = false
 
 				switch result := result.(type) {
+
 				case *GsCallReply:
 					m.replyChan <- result.Reply
+
+				case gsCallReplyOk:
+					m.replyChan <- replyOk
+
 				case *GsCallReplyTimeout:
 					m.replyChan <- result.Reply
 					timer = pid.SendAfterWithStop(gsTimeout, result.Timeout)
-				case *GsCallNoReply:
+
+				case gsCallNoReply:
+
 				case *GsCallNoReplyTimeout:
 					timer = pid.SendAfterWithStop(gsTimeout, result.Timeout)
+
 				case *GsCallStop:
 					inTerminate = true
 					m.replyChan <- result.Reply
 					gs.Terminate(result.Reason)
 					return
+
 				default:
-					reply := fmt.Sprintf("HanelCall bad reply: %#v", result)
+					reply := fmt.Sprintf("HandleCall bad reply: %#v", result)
 					m.replyChan <- errors.New(reply)
 					inTerminate = true
 					gs.Terminate(reply)
@@ -249,17 +268,21 @@ func GenServerLoop(
 				nLog("cast result: %#v", result)
 
 				switch result := result.(type) {
-				case *GsCastNoReply:
+
+				case gsCastNoReply:
+
 				case *GsCastNoReplyTimeout:
 					timer = pid.SendAfterWithStop(gsTimeout, result.Timeout)
+
 				case *GsCastStop:
 					inTerminate = true
 					gs.Terminate(result.Reason)
 					return
+
 				default:
 					inTerminate = true
 					gs.Terminate(
-						fmt.Sprintf("HanelCast bad reply: %#v", result))
+						fmt.Sprintf("HandleCast bad reply: %#v", result))
 					return
 				}
 			}

@@ -151,7 +151,7 @@ func SpawnOpts(gs GenServer, opts *Opts, args ...interface{}) (*Pid, error) {
 	result := <-initChan
 
 	switch result := result.(type) {
-	case *GsInitOk:
+	case gsInitOk:
 	case *GsInitStop:
 		return nil, errors.New(result.Reason)
 	case error:
