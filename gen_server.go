@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	// "runtime"
-	"time"
 )
 
 type GsTimeout int
@@ -324,21 +323,11 @@ func (pid *Pid) Call(data Term) (reply Term, err error) {
 
 	if pid != nil && pid.inChan != nil {
 
-		replyChan := make(chan Term, 1)
-		pid.inChan <- &genCallReq{data, replyChan}
-
 		var replyTerm Term
 
-		ticker := time.NewTicker(
-			time.Duration(defaultCallTimeoutMs) * time.Millisecond)
-		defer ticker.Stop()
-
-		select {
-		case replyTerm = <-replyChan:
-		case <-ticker.C:
-			close(replyChan)
-			return nil, errors.New("timeout")
-		}
+		replyChan := make(chan Term, 1)
+		pid.inChan <- &genCallReq{data, replyChan}
+		replyTerm = <-replyChan
 
 		// server stopped
 		if replyTerm == nil {

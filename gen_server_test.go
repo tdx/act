@@ -564,20 +564,6 @@ func TestBadCastReply3(t *testing.T) {
 	}
 }
 
-func TestLongCall(t *testing.T) {
-	start_server(t)
-
-	_, err := pid.Call(cmdLongCall) // err = timeout
-	if err == nil {
-		t.Error("call must fail with 'timeout' reason")
-	}
-
-	err = pid.Stop() // pid #1: stop recovered: "send on closed channel"
-	if err == nil {
-		t.Error("stop must fail")
-	}
-}
-
 //
 // Timeout
 //
