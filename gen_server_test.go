@@ -205,10 +205,12 @@ func (s *gs) HandleCast(req Term) Term {
 
 	switch req := req.(type) {
 	case GsTimeout:
+		// fmt.Printf("%s HandleCast: timeout\n", time.Now())
 		s.gotTimeout = true
 
 	case string:
 		if req == cmdTest {
+			// fmt.Printf("%s HandleCast: %s\n", time.Now(), cmdTest)
 			s.i = 100
 
 		} else if req == cmdStop {
@@ -231,6 +233,8 @@ func (s *gs) HandleCast(req Term) Term {
 
 			return &GsCastNoReplyTimeout{300}
 		}
+	default:
+		fmt.Printf("%s HandleCast: unexpected request: %#v\n", time.Now(), req)
 	}
 
 	return GsCastNoReply
@@ -578,7 +582,7 @@ func TestInitTimeout(t *testing.T) {
 	}
 
 	if r != true {
-		t.Error("init timeout failed")
+		t.Errorf("%s init timeout failed: %#v", time.Now(), r)
 	}
 
 	pid.Stop()
@@ -609,7 +613,7 @@ func TestCallTimeout(t *testing.T) {
 	}
 
 	if r != true {
-		t.Error("call timeout failed")
+		t.Errorf("%s call timeout failed: %#v", time.Now(), r)
 	}
 
 	pid.Stop()
@@ -640,7 +644,7 @@ func TestCallNoReplyTimeout(t *testing.T) {
 	}
 
 	if r != true {
-		t.Error("call timeout failed")
+		t.Errorf("%s call timeout failed: %#v", time.Now(), r)
 	}
 
 	pid.Stop()
@@ -671,7 +675,7 @@ func TestCastTimeout(t *testing.T) {
 	}
 
 	if r != true {
-		t.Error("cast timeout failed")
+		t.Errorf("%s cast timeout failed: %#v", time.Now(), r)
 	}
 
 	pid.Stop()
@@ -694,7 +698,7 @@ func TestCancelInitTimeout(t *testing.T) {
 	}
 
 	if r != false {
-		t.Error("cancel timeout failed")
+		t.Errorf("%s cancel timeout failed: %#v", time.Now(), r)
 	}
 
 	pid.Stop()
@@ -731,7 +735,7 @@ func TestCancelCallTimeout(t *testing.T) {
 	}
 
 	if r != false {
-		t.Error("call timeout failed")
+		t.Errorf("%s call timeout failed: %#v", time.Now(), r)
 	}
 
 	pid.Stop()
@@ -768,7 +772,7 @@ func TestCancelCastTimeout(t *testing.T) {
 	}
 
 	if r != false {
-		t.Error("cast timeout failed")
+		t.Error("%s cast timeout failed: %#v", time.Now(), r)
 	}
 
 	pid.Stop()

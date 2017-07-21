@@ -8,28 +8,15 @@ import (
 // Timer
 //
 type Timer struct {
-	ticker   *time.Ticker
-	stopChan chan<- bool
+	timer *time.Timer
 }
 
 func (pid *Pid) SendAfterWithStop(data Term, timeoutMs uint32) *Timer {
 
-	stop := make(chan bool, 1)
-	ticker := time.NewTicker(time.Duration(timeoutMs) * time.Millisecond)
+	d := time.Duration(timeoutMs) * time.Millisecond
+	timer := time.AfterFunc(d, func() { pid.Cast(data) })
 
-	go func() {
-
-		select {
-		case <-ticker.C:
-			pid.Cast(data)
-		case <-stop:
-		}
-
-		ticker.Stop()
-
-	}()
-
-	return &Timer{ticker, stop}
+	return &Timer{timer: timer}
 }
 
 func (t *Timer) Stop() {
@@ -37,11 +24,12 @@ func (t *Timer) Stop() {
 		return
 	}
 
-	defer func() {
-		recover()
-	}()
-
-	close(t.stopChan)
+	if !t.timer.Stop() {
+		select {
+		case <-t.timer.C:
+		default:
+		}
+	}
 }
 
 func (pid *Pid) SendAfter(data Term, timeoutMs uint32) {

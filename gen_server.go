@@ -354,12 +354,10 @@ func (pid *Pid) Cast(data Term) (err error) {
 		}
 	}()
 
-	if pid != nil {
-		if pid.inChan != nil {
-			pid.inChan <- &genReq{data}
+	if pid != nil && pid.inChan != nil {
+		pid.inChan <- &genReq{data}
 
-			return nil
-		}
+		return nil
 	}
 
 	return errors.New(NoProc)
@@ -426,6 +424,7 @@ func (pid *Pid) flushMessages(prefix string, name interface{}) {
 			case *genCallReq:
 				close(m.replyChan)
 			}
+		default:
 		}
 	}
 }

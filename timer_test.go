@@ -1,6 +1,7 @@
 package act
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -8,6 +9,31 @@ import (
 //
 // Timers
 //
+func TestGoTimer(t *testing.T) {
+	var gotEvent int64
+
+	d := time.Duration(300) * time.Millisecond
+	start := time.Now()
+
+	sendFunc := func() {
+
+		atomic.AddInt64(&gotEvent, 1)
+
+		end := time.Now()
+		t.Logf("%s timer fired: time %s\n", end, end.Sub(start))
+	}
+
+	t.Logf("%s shedule timer, %s\n", start, d)
+
+	time.AfterFunc(d, sendFunc)
+
+	time.Sleep(time.Duration(1000) * time.Millisecond)
+
+	if gotEvent < 1 {
+		t.Errorf("%s timer not fired: %#v", time.Now(), gotEvent)
+	}
+}
+
 func TestTimer(t *testing.T) {
 	start_server(t)
 
@@ -24,7 +50,7 @@ func TestTimer(t *testing.T) {
 	}
 
 	if r != 101 {
-		t.Errorf("inc() %d != 101", r)
+		t.Errorf("%s inc() %d != 101", time.Now(), r)
 	}
 
 	pid.Stop()
@@ -46,7 +72,7 @@ func TestWaitTimer(t *testing.T) {
 	}
 
 	if r != 101 {
-		t.Errorf("inc() %d != 101", r)
+		t.Errorf("%s inc() %d != 101", time.Now(), r)
 	}
 
 	pid.Stop()
@@ -79,7 +105,7 @@ func TestTimerStop(t *testing.T) {
 	}
 
 	if r != 11 {
-		t.Errorf("inc() %d != 11", r)
+		t.Errorf("%s inc() %d != 11", time.Now(), r)
 	}
 
 	pid.Stop()
