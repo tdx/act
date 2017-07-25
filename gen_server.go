@@ -3,6 +3,7 @@ package act
 import (
 	"errors"
 	"fmt"
+	"time"
 	// "runtime"
 )
 
@@ -416,15 +417,17 @@ func (pid *Pid) flushMessages(prefix string, name interface{}) {
 		}
 	}()
 
-	n := len(pid.inChan)
-	for i := 0; i < n; n++ {
+	for {
 		select {
 		case m := <-pid.inChan:
 			switch m := m.(type) {
 			case *genCallReq:
+				fmt.Printf("%s flushMessages: pid #%d/%s/%s: %#v\n",
+					time.Now(), pid.Id(), prefix, name, m)
 				close(m.replyChan)
 			}
 		default:
+			return
 		}
 	}
 }
