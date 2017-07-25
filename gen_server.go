@@ -7,6 +7,19 @@ import (
 	// "runtime"
 )
 
+//
+// No process error
+//
+type gsNoProcError int
+
+func (e gsNoProcError) Error() string {
+	return "no_proc"
+}
+
+//
+// gen_server's return types
+//
+
 type GsTimeout int
 
 // ---------------------------------------------------------------------------
@@ -89,6 +102,7 @@ const (
 	GsCastNoReply gsCastNoReply = 2
 	GsCallNoReply gsCallNoReply = 3
 	GsCallReplyOk gsCallReplyOk = 4
+	GsNoProcError gsNoProcError = 5
 )
 
 //
@@ -332,7 +346,7 @@ func (pid *Pid) Call(data Term) (reply Term, err error) {
 
 		// server stopped
 		if replyTerm == nil {
-			return nil, errors.New(NoProc)
+			return nil, GsNoProcError
 		}
 
 		// call crashed ?
@@ -344,7 +358,7 @@ func (pid *Pid) Call(data Term) (reply Term, err error) {
 		return replyTerm, nil
 	}
 
-	return nil, errors.New(NoProc)
+	return nil, GsNoProcError
 }
 
 func (pid *Pid) Cast(data Term) (err error) {
@@ -361,7 +375,7 @@ func (pid *Pid) Cast(data Term) (err error) {
 		return nil
 	}
 
-	return errors.New(NoProc)
+	return GsNoProcError
 }
 
 func (pid *Pid) Stop() error {
@@ -385,7 +399,7 @@ func (pid *Pid) StopReason(reason string) (err error) {
 		return nil
 	}
 
-	return errors.New(NoProc)
+	return GsNoProcError
 }
 
 // ---------------------------------------------------------------------------

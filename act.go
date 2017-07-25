@@ -73,8 +73,6 @@ type act struct {
 	registered map[string]regMap
 }
 
-const NoProc string = "no_proc"
-
 // ---------------------------------------------------------------------------
 var nTrace bool
 var env *act
