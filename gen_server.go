@@ -16,6 +16,14 @@ func (e gsNoProcError) Error() string {
 	return "no_proc"
 }
 
+func IsNoProcError(err error) bool {
+	if _, ok := err.(gsNoProcError); ok {
+		return true
+	}
+
+	return false
+}
+
 //
 // gen_server's return types
 //
