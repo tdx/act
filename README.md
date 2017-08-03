@@ -1,4 +1,4 @@
-# act [![][go-report-svg]][go-report-url] [![][travis-svg]][travis-url] [![][coveralls-svg]][coveralls-url]
+# act [![Go Reprt Card][go-report-svg]][go-report-url] [![][travis-svg]][travis-url] [![][coveralls-svg]][coveralls-url]
 
 go actors in erlang style
 
