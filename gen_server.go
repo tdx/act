@@ -145,7 +145,7 @@ const (
 
 	gsTimeout GsTimeout = 0
 	// GsInitOk is returned from Init callback to indicate that initialization
-	// of process is successfull
+	// of process is successful
 	GsInitOk gsInitOk = 1
 	// GsCastNoReply is returned from HandleCast callback to indicate that no
 	// result to reply to caller
