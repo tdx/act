@@ -59,7 +59,7 @@ func TestGenServerImplReg(t *testing.T) {
 	}
 
 	if pid.Id() != pid1.Id() {
-		t.Error("wrong pid id: want %v - got %v", pid.Id(), pid1.Id())
+		t.Errorf("wrong pid id: want %v - got %v", pid.Id(), pid1.Id())
 	}
 
 	err = pid.Stop()
@@ -94,7 +94,7 @@ func TestGenServerImplReg2(t *testing.T) {
 	}
 
 	if pid.Id() != pid1.Id() {
-		t.Error("wrong pid id: want %v - got %v", pid.Id(), pid1.Id())
+		t.Errorf("wrong pid id: want %v - got %v", pid.Id(), pid1.Id())
 	}
 
 	err = pid.Stop()

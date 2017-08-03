@@ -324,7 +324,7 @@ func TestCall(t *testing.T) {
 func TestCallNoReply(t *testing.T) {
 	r, err := pid.Call(cmdCallNoReply)
 	if err != nil {
-		t.Error("CallNoReply failed: %s", err)
+		t.Errorf("CallNoReply failed: %s", err)
 	}
 
 	if r != "ok" {
@@ -471,7 +471,7 @@ func TestCrashInCast(t *testing.T) {
 	// send crash command
 	err := pid.Cast(cmdCrash)
 	if err != nil {
-		t.Error("cast crash: %s", err)
+		t.Errorf("cast crash: %s", err)
 	}
 }
 
@@ -481,7 +481,7 @@ func TestCrashInStop(t *testing.T) {
 	// send crash command
 	err := pid.Cast(cmdCrashInStop)
 	if err != nil {
-		t.Error("stop crash: %s", err)
+		t.Errorf("stop crash: %s", err)
 	}
 
 	// crash, stpped in any case
@@ -772,7 +772,7 @@ func TestCancelCastTimeout(t *testing.T) {
 	}
 
 	if r != false {
-		t.Error("%s cast timeout failed: %#v", time.Now(), r)
+		t.Errorf("%s cast timeout failed: %#v", time.Now(), r)
 	}
 
 	pid.Stop()
