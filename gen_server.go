@@ -16,6 +16,9 @@ func (e gsNoProcError) Error() string {
 	return "no_proc"
 }
 
+//
+// IsNoProcError checks if error is of type of gsNoProcError
+//
 func IsNoProcError(err error) bool {
 	if _, ok := err.(gsNoProcError); ok {
 		return true
@@ -28,6 +31,9 @@ func IsNoProcError(err error) bool {
 // gen_server's return types
 //
 
+//
+// GsTimeout is sent to the process if the inactivity timer has expired
+//
 type GsTimeout int
 
 // ---------------------------------------------------------------------------
@@ -40,10 +46,19 @@ type GsTimeout int
 //
 type gsInitOk int
 
+//
+// GsInitOkTimeout is returned from the Init callback to indicate
+// that the process initialization is successful and an inactivity
+// timer must be set
+//
 type GsInitOkTimeout struct {
 	Timeout uint32
 }
 
+//
+// GsInitStop is returned from the Init callback to indicat that
+// the process must be stopped
+//
 type GsInitStop struct {
 	Reason string
 }
@@ -58,10 +73,18 @@ type GsInitStop struct {
 //
 type gsCastNoReply int
 
+//
+// GsCastNoReplyTimeout is returned from the HandleCast callback to indicate
+// that an inactivity timer must be set
+//
 type GsCastNoReplyTimeout struct {
 	Timeout uint32
 }
 
+//
+// GsCastStop is returned from the HandleCast callback to indicate that
+// the process must be stopped
+//
 type GsCastStop struct {
 	Reason string
 }
@@ -77,13 +100,20 @@ type GsCastStop struct {
 // {stop, Reason, Reply}
 //
 
-// reply "ok"
 type gsCallReplyOk int
 
+//
+// GsCallReply is returned from the HandleCall callback to indicate that
+// the process returns result in Reply
+//
 type GsCallReply struct {
 	Reply Term
 }
 
+//
+// GsCallReplyTimeout is returned from the HandleCall callback to indicate that
+// the process returns result in Reply and an inactivity timer must be set
+//
 type GsCallReplyTimeout struct {
 	Reply   Term
 	Timeout uint32
@@ -91,10 +121,18 @@ type GsCallReplyTimeout struct {
 
 type gsCallNoReply int
 
+//
+// GsCallNoReplyTimeout is returned from the HandleCall callback to indicate
+// that an inactivity timer must be set. Result to caller returned with Reply()
+//
 type GsCallNoReplyTimeout struct {
 	Timeout uint32
 }
 
+//
+// GsCallStop is returned from the HandleCall callback to indicate that
+// the process must be stopped
+//
 type GsCallStop struct {
 	Reason string
 	Reply  Term
@@ -105,11 +143,20 @@ const (
 
 	replyOk string = "ok"
 
-	gsTimeout     GsTimeout     = 0
-	GsInitOk      gsInitOk      = 1
+	gsTimeout GsTimeout = 0
+	// GsInitOk is returned from Init callback to indicate that initialization
+	// of process is successfull
+	GsInitOk gsInitOk = 1
+	// GsCastNoReply is returned from HandleCast callback to indicate that no
+	// result to reply to caller
 	GsCastNoReply gsCastNoReply = 2
+	// GsCallNoReply is returned from HandleCall callback to indicate that no
+	// result to reply to caller
 	GsCallNoReply gsCallNoReply = 3
+	// GsCallReplyOk is standard reply from HandleCall
 	GsCallReplyOk gsCallReplyOk = 4
+	// GsNoProcError can be returned from Cast or Call if process identificated
+	// by pid is not exists
 	GsNoProcError gsNoProcError = 5
 )
 
@@ -122,6 +169,7 @@ type genReq struct {
 	data Term
 }
 
+// From type for Reply() method
 type From chan<- Term
 
 // Call arg
@@ -151,7 +199,7 @@ type GenServer interface {
 	setName(name interface{})
 }
 
-// ProcessLoop executes during whole time of process life.
+// GenServerLoop executes during whole time of process life.
 // It receives incoming messages from channels and handle it
 // using methods of implementation
 func GenServerLoop(
@@ -330,11 +378,16 @@ func GenServerLoop(
 	} // for
 }
 
-// ---------------------------------------------------------------------------
+//
+// Reply sends reply to caller
+//
 func Reply(replyTo From, data Term) {
 	replyTo <- data
 }
 
+//
+// Call makes a synchronous call to the process
+//
 func (pid *Pid) Call(data Term) (reply Term, err error) {
 
 	defer func() {
@@ -369,6 +422,9 @@ func (pid *Pid) Call(data Term) (reply Term, err error) {
 	return nil, GsNoProcError
 }
 
+//
+// Cast makes an asynchronous call to the process
+//
 func (pid *Pid) Cast(data Term) (err error) {
 
 	defer func() {
@@ -386,10 +442,17 @@ func (pid *Pid) Cast(data Term) (err error) {
 	return GsNoProcError
 }
 
+//
+// Stop makes synchronous stop request to the process
+//
 func (pid *Pid) Stop() error {
 	return pid.StopReason("stop")
 }
 
+//
+// StopReason makes synchronous stop request to the process
+// Reason is the reason to stop the process
+//
 func (pid *Pid) StopReason(reason string) (err error) {
 
 	defer func() {

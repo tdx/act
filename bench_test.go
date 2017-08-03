@@ -10,18 +10,18 @@ import (
 // ----------------------------------------------------------------------------
 func BenchmarkStartServer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		run_server()
+		runServer()
 	}
 }
 
 func BenchmarkStartRegisteredServer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		start_prefix("gsGroup", fmt.Sprintf("proc_%d", i))
+		startPrefix("gsGroup", fmt.Sprintf("proc_%d", i))
 	}
 }
 
 func BenchmarkCallPid(b *testing.B) {
-	pid, err := run_server()
+	pid, err := runServer()
 	if err == nil {
 
 		req := &reqInc{}
@@ -42,9 +42,9 @@ func BenchmarkCallName(b *testing.B) {
 	opts := &Opts{
 		Prefix: prefix,
 		Name:   name,
-		Return_pid_if_registered: true}
+		ReturnPidIfRegistered: true}
 
-	start_server_opts(b, opts)
+	startServerOpts(b, opts)
 
 	var pid *Pid
 	req := &reqInc{}
@@ -63,7 +63,7 @@ func BenchmarkCallName(b *testing.B) {
 }
 
 func BenchmarkCastPid(b *testing.B) {
-	pid, err := run_server()
+	pid, err := runServer()
 	if err == nil {
 
 		b.ResetTimer()

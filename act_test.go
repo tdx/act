@@ -16,7 +16,7 @@ func TestPidId(t *testing.T) {
 // Registrator
 //
 func TestRegister(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	prefix := "gsGroup"
 	name := "test_name"
@@ -99,7 +99,7 @@ func TestRegisterInSpawn(t *testing.T) {
 	prefix := "gsGroup"
 	name := "proc1"
 
-	_, err := start_prefix(prefix, name)
+	_, err := startPrefix(prefix, name)
 	if err != nil {
 		t.Error(err)
 	}
@@ -125,12 +125,12 @@ func TestRegisterInSpawn(t *testing.T) {
 		t.Error("can not register two pids with same prefix and name")
 	}
 
-	_, err = start_prefix(prefix, name)
+	_, err = startPrefix(prefix, name)
 	if err == nil {
 		t.Error("can not spqsn two process with same prefix and name")
 	}
 
-	_, err = start_prefix("newGroup", name)
+	_, err = startPrefix("newGroup", name)
 	if err != nil {
 		t.Error(err)
 	}

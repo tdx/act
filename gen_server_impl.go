@@ -65,18 +65,30 @@ func (gs *GenServerImpl) setName(name interface{}) {
 	gs.name = name
 }
 
+//
+// Self returns pid of the process
+//
 func (gs *GenServerImpl) Self() *Pid {
 	return gs.self
 }
 
+//
+// Prefix returns prefix of the process
+//
 func (gs *GenServerImpl) Prefix() string {
 	return gs.prefix
 }
 
+//
+// Name returns name of the process
+//
 func (gs *GenServerImpl) Name() interface{} {
 	return gs.name
 }
 
+//
+// NameStr return name of the process as a string
+//
 func (gs *GenServerImpl) NameStr() string {
 	switch name := gs.name.(type) {
 	case string:
@@ -84,8 +96,7 @@ func (gs *GenServerImpl) NameStr() string {
 	default:
 		if name == nil {
 			return ""
-		} else {
-			return fmt.Sprintf("%v", name)
 		}
+		return fmt.Sprintf("%v", name)
 	}
 }

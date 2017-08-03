@@ -7,22 +7,29 @@ import (
 	"log"
 )
 
+//
+// Term is a type for any values
+//
 type Term interface{}
-type Tuple []Term
-type List []Term
-type Atom string
 
+//
+// Pid incapsulates actor identificator and
+// channels to communicate to actor process
+//
 type Pid struct {
 	id       uint64
 	inChan   chan interface{}
 	stopChan chan *stopReq
 }
 
+//
+// Opts - options for spawn actor process
+//
 type Opts struct {
-	Prefix                   string
-	Name                     interface{}
-	Chan_size                uint32
-	Return_pid_if_registered bool
+	Prefix                string
+	Name                  interface{}
+	ChanSize              uint32
+	ReturnPidIfRegistered bool
 }
 
 type makePidResp struct {
@@ -53,10 +60,13 @@ type whereNameReq struct {
 	replyTo chan<- *Pid
 }
 
-type regMap map[interface{}]*Pid
+//
+// RegMap map of registered processes with same prefix
+//
+type RegMap map[interface{}]*Pid
 type wherePrefixReq struct {
 	prefix  string
-	replyTo chan<- regMap
+	replyTo chan<- RegMap
 }
 
 type registryChan struct {
@@ -70,7 +80,7 @@ type registryChan struct {
 type act struct {
 	serial     uint64
 	registry   *registryChan
-	registered map[string]regMap
+	registered map[string]RegMap
 }
 
 // ---------------------------------------------------------------------------
@@ -90,11 +100,11 @@ func init() {
 
 	env = &act{
 		registry:   registry,
-		registered: make(map[string]regMap),
+		registered: make(map[string]RegMap),
 	}
 
 	// without prefix
-	env.registered[""] = make(regMap)
+	env.registered[""] = make(RegMap)
 
 	env.run()
 }
@@ -105,9 +115,9 @@ func nLog(f string, a ...interface{}) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Spawn new GenServer process
-// ---------------------------------------------------------------------------
+//
+// Spawn spawns a new GenServer process
+//
 func Spawn(gs GenServer, args ...interface{}) (pid *Pid, err error) {
 
 	pid, err = SpawnOpts(gs, &Opts{}, args...)
@@ -115,6 +125,9 @@ func Spawn(gs GenServer, args ...interface{}) (pid *Pid, err error) {
 	return
 }
 
+//
+// SpawnPrefixName spawns a new GenServer process with given prefix and name
+//
 func SpawnPrefixName(
 	gs GenServer,
 	prefix string,
@@ -130,17 +143,20 @@ func SpawnPrefixName(
 	return
 }
 
+//
+// SpawnOpts spawns a new GenServer process with given opts
+//
 func SpawnOpts(gs GenServer, opts *Opts, args ...interface{}) (*Pid, error) {
 
-	if opts.Chan_size == 0 {
-		opts.Chan_size = 100
+	if opts.ChanSize == 0 {
+		opts.ChanSize = 100
 	}
 
 	pid, err := env.makePid(opts)
 	if err != nil {
 		return nil, err
 	}
-	pid.inChan = make(chan interface{}, opts.Chan_size)
+	pid.inChan = make(chan interface{}, opts.ChanSize)
 	pid.stopChan = make(chan *stopReq)
 
 	initChan := make(chan Term)
@@ -159,7 +175,9 @@ func SpawnOpts(gs GenServer, opts *Opts, args ...interface{}) (*Pid, error) {
 	return pid, nil
 }
 
+//
 // Register associates the name with pid
+//
 func Register(name interface{}, pid *Pid) error {
 	replyChan := make(chan bool, 1)
 	r := regNameReq{name: name, pid: pid, replyTo: replyChan}
@@ -173,6 +191,9 @@ func Register(name interface{}, pid *Pid) error {
 	return fmt.Errorf("name '%v' already registered", name)
 }
 
+//
+// RegisterPrefix associates the prefix + name with pid
+//
 func RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
 	replyChan := make(chan bool, 1)
 	r := regNameReq{prefix: prefix, name: name, pid: pid, replyTo: replyChan}
@@ -186,12 +207,17 @@ func RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
 	return fmt.Errorf("name '%s/%v' already registered", prefix, name)
 }
 
+//
 // Unregister removes the registered name
+//
 func Unregister(name interface{}) {
 	r := unregNameReq{name: name}
 	env.registry.unregNameChan <- r
 }
 
+//
+// UnregisterPrefix removes the registered name
+//
 func UnregisterPrefix(prefix string, name interface{}) {
 	if prefix == "" && name == nil {
 		return
@@ -201,13 +227,18 @@ func UnregisterPrefix(prefix string, name interface{}) {
 	env.registry.unregNameChan <- r
 }
 
+//
 // Whereis returns pid of registered process
+//
 func Whereis(name interface{}) *Pid {
 	pid := WhereisPrefix("", name)
 
 	return pid
 }
 
+//
+// WhereisPrefix returns pid of registered process
+//
 func WhereisPrefix(prefix string, name interface{}) *Pid {
 	replyChan := make(chan *Pid, 1)
 	r := whereNameReq{prefix: prefix, name: name, replyTo: replyChan}
@@ -217,9 +248,11 @@ func WhereisPrefix(prefix string, name interface{}) *Pid {
 	return pid
 }
 
-// Returns all pids with same prefix
-func Whereare(prefix string) regMap {
-	replyChan := make(chan regMap, 1)
+//
+// Whereare returns all pids with same prefix
+//
+func Whereare(prefix string) RegMap {
+	replyChan := make(chan RegMap, 1)
 	r := wherePrefixReq{prefix: prefix, replyTo: replyChan}
 	env.registry.wherePrefixChan <- r
 	regs := <-replyChan
@@ -252,7 +285,7 @@ func (n *act) registrator() {
 
 						newPidCreated = false
 
-						if req.opts.Return_pid_if_registered == true {
+						if req.opts.ReturnPidIfRegistered == true {
 							resp.pid = pid
 						} else {
 							// name already registered
@@ -266,20 +299,20 @@ func (n *act) registrator() {
 					}
 
 				} else { // no maps with prefix
-					n.registered[req.opts.Prefix] = make(regMap)
+					n.registered[req.opts.Prefix] = make(RegMap)
 					n.registered[req.opts.Prefix][req.opts.Name] = resp.pid
 				}
 			}
 
 			if newPidCreated {
-				n.serial += 1
+				n.serial++
 			}
 
 			req.replyTo <- resp
 
 		case req := <-n.registry.regNameChan:
 			if _, ok := n.registered[req.prefix]; !ok {
-				n.registered[req.prefix] = make(regMap)
+				n.registered[req.prefix] = make(RegMap)
 			}
 			if _, ok := n.registered[req.prefix][req.name]; ok {
 				req.replyTo <- false // name registered
@@ -297,9 +330,9 @@ func (n *act) registrator() {
 			req.replyTo <- n.registered[req.prefix][req.name]
 
 		case req := <-n.registry.wherePrefixChan:
-			var rpids regMap
+			var rpids RegMap
 			if pids, ok := n.registered[req.prefix]; ok {
-				rpids = make(regMap)
+				rpids = make(RegMap)
 				for k, v := range pids {
 					rpids[k] = v
 				}
@@ -317,6 +350,9 @@ func (n *act) makePid(opts *Opts) (*Pid, error) {
 	return resp.pid, resp.err
 }
 
+//
+// Id returns process identificator
+//
 func (pid *Pid) Id() uint64 {
 	if pid == nil {
 		return 0

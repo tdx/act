@@ -56,7 +56,7 @@ func start(i int) (pid *Pid, err error) {
 	return
 }
 
-func start_fail() (pid *Pid, err error) {
+func startFail() (pid *Pid, err error) {
 
 	s := new(gs)
 	pid, err = Spawn(s, true)
@@ -64,7 +64,7 @@ func start_fail() (pid *Pid, err error) {
 	return
 }
 
-func start_fail2() (pid *Pid, err error) {
+func startFail2() (pid *Pid, err error) {
 
 	s := new(gs)
 	pid, err = Spawn(s, "bad reply")
@@ -72,7 +72,7 @@ func start_fail2() (pid *Pid, err error) {
 	return
 }
 
-func start_prefix(prefix, name string) (*Pid, error) {
+func startPrefix(prefix, name string) (*Pid, error) {
 
 	s := new(gs)
 
@@ -81,7 +81,7 @@ func start_prefix(prefix, name string) (*Pid, error) {
 	return pid, err
 }
 
-func run_server() (*Pid, error) {
+func runServer() (*Pid, error) {
 
 	s := new(gs)
 
@@ -139,7 +139,7 @@ func (s *gs) HandleCall(req Term, from From) Term {
 
 	case string:
 		if req == cmdCrash {
-			var i int = 1
+			i := 1
 
 			return &GsCallReply{i / (i - 1)}
 
@@ -217,7 +217,7 @@ func (s *gs) HandleCast(req Term) Term {
 			return &GsCastStop{cmdStop}
 
 		} else if req == cmdCrash {
-			var i int = 1
+			i := 1
 			s.i = i / (i - 1)
 
 		} else if req == cmdCrashInStop {
@@ -254,7 +254,7 @@ func (s *gs) Terminate(reason string) {
 // ----------------------------------------------------------------------------
 // Tests
 // ----------------------------------------------------------------------------
-func start_server(t *testing.T) {
+func startServer(t *testing.T) {
 	var err error
 	pid, err = start(10)
 	if err != nil {
@@ -262,7 +262,7 @@ func start_server(t *testing.T) {
 	}
 }
 
-func start_timeout(t *testing.T) {
+func startTimeout(t *testing.T) {
 	var err error
 
 	s := new(gs)
@@ -273,7 +273,7 @@ func start_timeout(t *testing.T) {
 	}
 }
 
-func start_server_opts(b *testing.B, opts *Opts) {
+func startServerOpts(b *testing.B, opts *Opts) {
 	var err error
 
 	s := new(gs)
@@ -286,14 +286,14 @@ func start_server_opts(b *testing.B, opts *Opts) {
 
 func TestInitStop(t *testing.T) {
 	var err error
-	pid, err = start_fail()
+	pid, err = startFail()
 	if err == nil {
 		t.Fatal("start server must fail")
 	}
 }
 
 func TestInit(t *testing.T) {
-	start_server(t)
+	startServer(t)
 }
 
 func TestCall(t *testing.T) {
@@ -395,7 +395,7 @@ func TestCastStopped(t *testing.T) {
 }
 
 func TestCallStop(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	// unexpected call -> stop server
 	_, err := pid.Call(cmdStop)
@@ -411,7 +411,7 @@ func TestCallStop(t *testing.T) {
 }
 
 func TestCastStop(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	// send stop command
 	err := pid.Cast(cmdStop)
@@ -450,7 +450,7 @@ func TestNilPid(t *testing.T) {
 // Crash gen server process
 //
 func TestCrashInCall(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	// send crash command
 	_, err := pid.Call(cmdCrash)
@@ -466,7 +466,7 @@ func TestCrashInCall(t *testing.T) {
 }
 
 func TestCrashInCast(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	// send crash command
 	err := pid.Cast(cmdCrash)
@@ -476,7 +476,7 @@ func TestCrashInCast(t *testing.T) {
 }
 
 func TestCrashInStop(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	// send crash command
 	err := pid.Cast(cmdCrashInStop)
@@ -493,7 +493,7 @@ func TestCrashInStop(t *testing.T) {
 //
 func TestBadInitReply(t *testing.T) {
 
-	pid, err := start_fail2()
+	pid, err := startFail2()
 
 	if err == nil {
 		t.Error("server must not be started")
@@ -506,7 +506,7 @@ func TestBadInitReply(t *testing.T) {
 }
 
 func TestBadCallReply(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	_, err := pid.Call(cmdCallBadReply)
 	if err == nil {
@@ -520,7 +520,7 @@ func TestBadCallReply(t *testing.T) {
 }
 
 func TestBadCastReply(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	err := pid.Cast(cmdCastBadReply)
 	if err != nil {
@@ -534,7 +534,7 @@ func TestBadCastReply(t *testing.T) {
 }
 
 func TestBadCastReply2(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	err := pid.Cast(cmdCastBadReply)
 	if err != nil {
@@ -554,7 +554,7 @@ func TestBadCastReply2(t *testing.T) {
 }
 
 func TestBadCastReply3(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	err := pid.Cast(cmdCastBadReply)
 	if err != nil {
@@ -572,7 +572,7 @@ func TestBadCastReply3(t *testing.T) {
 // Timeout
 //
 func TestInitTimeout(t *testing.T) {
-	start_timeout(t)
+	startTimeout(t)
 
 	time.Sleep(time.Duration(500) * time.Millisecond)
 
@@ -589,7 +589,7 @@ func TestInitTimeout(t *testing.T) {
 }
 
 func TestCallTimeout(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	r, err := pid.Call(cmdGetTimeout)
 	if err != nil {
@@ -620,7 +620,7 @@ func TestCallTimeout(t *testing.T) {
 }
 
 func TestCallNoReplyTimeout(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	r, err := pid.Call(cmdGetTimeout)
 	if err != nil {
@@ -651,7 +651,7 @@ func TestCallNoReplyTimeout(t *testing.T) {
 }
 
 func TestCastTimeout(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	r, err := pid.Call(cmdGetTimeout)
 	if err != nil {
@@ -682,7 +682,7 @@ func TestCastTimeout(t *testing.T) {
 }
 
 func TestCancelInitTimeout(t *testing.T) {
-	start_timeout(t)
+	startTimeout(t)
 
 	// any call/cast must cancel timeout
 	_, err := pid.Call(cmdGetTimeout)
@@ -705,7 +705,7 @@ func TestCancelInitTimeout(t *testing.T) {
 }
 
 func TestCancelCallTimeout(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	r, err := pid.Call(cmdGetTimeout)
 	if err != nil {
@@ -742,7 +742,7 @@ func TestCancelCallTimeout(t *testing.T) {
 }
 
 func TestCancelCastTimeout(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	r, err := pid.Call(cmdGetTimeout)
 	if err != nil {

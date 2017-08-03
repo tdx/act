@@ -35,7 +35,7 @@ func TestGoTimer(t *testing.T) {
 }
 
 func TestTimer(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	_, err := pid.Call(cmdStartTimer)
 	if err != nil {
@@ -57,7 +57,7 @@ func TestTimer(t *testing.T) {
 }
 
 func TestWaitTimer(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	_, err := pid.Call(cmdStartStoppableTimer)
 	if err != nil {
@@ -79,7 +79,7 @@ func TestWaitTimer(t *testing.T) {
 }
 
 func TestTimerStop(t *testing.T) {
-	start_server(t)
+	startServer(t)
 
 	_, err := pid.Call(cmdStartStoppableTimer)
 	if err != nil {
