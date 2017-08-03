@@ -2,8 +2,8 @@
 
 go actors in erlang style
 
-[go-report-url]: https://goreportcard.com/report/tdx/act
-[go-report-svg]: https://goreportcard.com/badge/tdx/act
+[go-report-url]: https://goreportcard.com/badge/github.com/tdx/act
+[go-report-svg]: https://goreportcard.com/report/github.com/tdx/act
 
 [travis-url]: https://travis-ci.org/tdx/act
 [travis-svg]: https://travis-ci.org/tdx/act.svg?branch=master
