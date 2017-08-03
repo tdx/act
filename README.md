@@ -1,4 +1,9 @@
-[![Go Report Card](https://goreportcard.com/badge/tdx/act)](https://goreportcard.com/report/tdx/act) [![Build Status](https://travis-ci.org/tdx/act.svg?branch=master)](https://travis-ci.org/tdx/act)
+# act [![][go-report-svg]][go-report-url] [![][travis-svg]][travis-url]
 
-# act
 go actors in erlang style
+
+[go-report-url]: https://goreportcard.com/report/tdx/act
+[go-report-svg]: https://goreportcard.com/badge/tdx/act
+
+[travis-url]: https://travis-ci.org/tdx/act
+[travis-svg]: https://travis-ci.org/tdx/act.svg?branch=master
