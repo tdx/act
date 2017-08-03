@@ -8,5 +8,5 @@ go actors in erlang style
 [travis-url]: https://travis-ci.org/tdx/act
 [travis-svg]: https://travis-ci.org/tdx/act.svg?branch=master
 
-[coveralls-url]: https://coveralls.io/r/tdx/act?branch=master
-[coveralls-svg]: https://img.shields.io/coveralls/tdx/act.svg
+[coveralls-url]: https://coveralls.io/github/tdx/act?branch=master
+[coveralls-svg]: https://coveralls.io/repos/github/tdx/act/badge.svg?branch=master
