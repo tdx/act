@@ -1,11 +1,16 @@
-sudo: false
 language: go
 go:
   - 1.7.x
   - 1.8.x
+
+before_install:
+  - sudo pip install codecov
 
 install:
   - go get -t -v ./...
 
 script:
   - go test -v ./...
+
+after_success:
+  - codecov
