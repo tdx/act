@@ -37,13 +37,13 @@ func (gs *GenServerImpl) HandleCast(req Term) Term {
 }
 
 //
-// HandleCall handles incoming messages from `pid.Call(data, from)`
+// HandleCall handles incoming messages from `pid.Call(data)`
 //
 func (gs *GenServerImpl) HandleCall(req Term, from From) Term {
 
 	log.Printf("GenServerImpl:HandleCall : %#v, From: %#v", req, from)
 
-	return &GsCallReply{"ok"}
+	return GsCallReplyOk
 }
 
 //

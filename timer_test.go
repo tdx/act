@@ -29,7 +29,7 @@ func TestGoTimer(t *testing.T) {
 
 	time.Sleep(time.Duration(1000) * time.Millisecond)
 
-	if gotEvent < 1 {
+	if atomic.LoadInt64(&gotEvent) < 1 {
 		t.Errorf("%s timer not fired: %#v", time.Now(), gotEvent)
 	}
 }
