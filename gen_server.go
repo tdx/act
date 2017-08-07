@@ -139,8 +139,6 @@ type GsCallStop struct {
 }
 
 const (
-	defaultCallTimeoutMs uint32 = 5000
-
 	replyOk string = "ok"
 
 	gsTimeout GsTimeout = 0
