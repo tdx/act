@@ -6,7 +6,7 @@
 
 ### Define the actor
 
-Each actor is a separate process that implements the `GenServer` interface and can contain a state.
+Each actor is a separate process that implements the `GenServer` interface.
 
 ```go
 
