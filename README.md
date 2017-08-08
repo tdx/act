@@ -17,14 +17,14 @@ import (
 
 type gs struct {
 	GenServerImpl
-	// some state variables
+	// state variables
 }
 
 //
 // Init initializes process state using arbitrary arguments
 //
 func (s *gs) Init(args ...interface{}) Term {
-	return act.GsIntiOk
+	return act.GsInitOk
 }
 
 //
@@ -57,7 +57,6 @@ func (s *gs) Terminate(reason string) {
 ### Run the actor
 
 ```go
-
 func Start() (*act.Pid, error) {
 	gs := new(gs)
 	pid, err := act.Spawn(gs)
@@ -108,7 +107,7 @@ Before the actor process stopped `Terminate` callback is called.
 
 ## Process registry
 
-Process registry stores pid associations with a given name.
+Process registry stores pid association with a given name.
 To accociate a pid with a name you can use `SpawnOpts`
 
 ```go
@@ -126,7 +125,7 @@ func (s *gs) Init(args ...interface{}) Term {
 
 	act.Register(someUsefulData, s.Self())
 
-	return act.GsIntiOk
+	return act.GsInitOk
 }
 ```
 
@@ -186,7 +185,7 @@ func (s *gs) HandleCast(req act.Term) act.Term {
 
 ### Actor timeouts
 
-Actor can set the inactivity timeout. After the timeout occurs, the process will receive an `act.GsTimeout` message.
+Actor can set the inactivity timer. After the timeout occurs, the process will receive an `act.GsTimeout` message.
 
 ```go
 func (s *gs) Init(args ...interface{}) act.Term {
