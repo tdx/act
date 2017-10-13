@@ -267,49 +267,20 @@ func (n *act) run() {
 
 func (n *act) registrator() {
 	for {
+
+		//
+		// first handle new registation
+		//
 		select {
 		case req := <-n.registry.makePidChan:
-			newPidCreated := true
+			n.regNewPid(&req)
+			continue
+		default:
+		}
 
-			var newPid Pid
-			newPid.id = n.serial + 1
-
-			var resp makePidResp
-			resp.pid = &newPid
-
-			// register name with prefix if not empty
-			if req.opts.Name != nil {
-				if _, ok := n.registered[req.opts.Prefix]; ok {
-					// map with prefix exists
-					if pid, ok := n.registered[req.opts.Prefix][req.opts.Name]; ok {
-
-						newPidCreated = false
-
-						if req.opts.ReturnPidIfRegistered == true {
-							resp.pid = pid
-						} else {
-							// name already registered
-							resp.pid = nil
-							resp.err =
-								fmt.Errorf("name '%s/%v' already registered",
-									req.opts.Prefix, req.opts.Name)
-						}
-					} else {
-						n.registered[req.opts.Prefix][req.opts.Name] = resp.pid
-					}
-
-				} else { // no maps with prefix
-					n.registered[req.opts.Prefix] = make(RegMap)
-					n.registered[req.opts.Prefix][req.opts.Name] = resp.pid
-				}
-			}
-
-			if newPidCreated {
-				n.serial++
-			}
-
-			req.replyTo <- resp
-
+		select {
+		case req := <-n.registry.makePidChan:
+			n.regNewPid(&req)
 		case req := <-n.registry.regNameChan:
 			if _, ok := n.registered[req.prefix]; !ok {
 				n.registered[req.prefix] = make(RegMap)
@@ -340,6 +311,49 @@ func (n *act) registrator() {
 			req.replyTo <- rpids
 		}
 	}
+}
+
+func (n *act) regNewPid(req *makePidReq) {
+	newPidCreated := true
+
+	var newPid Pid
+	newPid.id = n.serial + 1
+
+	var resp makePidResp
+	resp.pid = &newPid
+
+	// register name with prefix if not empty
+	if req.opts.Name != nil {
+		if _, ok := n.registered[req.opts.Prefix]; ok {
+			// map with prefix exists
+			if pid, ok := n.registered[req.opts.Prefix][req.opts.Name]; ok {
+
+				newPidCreated = false
+
+				if req.opts.ReturnPidIfRegistered == true {
+					resp.pid = pid
+				} else {
+					// name already registered
+					resp.pid = nil
+					resp.err =
+						fmt.Errorf("name '%s/%v' already registered",
+							req.opts.Prefix, req.opts.Name)
+				}
+			} else {
+				n.registered[req.opts.Prefix][req.opts.Name] = resp.pid
+			}
+
+		} else { // no maps with prefix
+			n.registered[req.opts.Prefix] = make(RegMap)
+			n.registered[req.opts.Prefix][req.opts.Name] = resp.pid
+		}
+	}
+
+	if newPidCreated {
+		n.serial++
+	}
+
+	req.replyTo <- resp
 }
 
 func (n *act) makePid(opts *Opts) (*Pid, error) {
