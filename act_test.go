@@ -158,3 +158,46 @@ func TestRegisterInOpts(t *testing.T) {
 
 	pid.Stop()
 }
+
+func TestDiffEnv(t *testing.T) {
+	env := NewEnv()
+
+	startServer(t)
+
+	name := "test_name"
+
+	err := Register(name, pid) // registered in default environment
+	if err != nil {
+		t.Error(err)
+	}
+
+	pid1 := Whereis(name)
+	if pid1 == nil {
+		t.Errorf("process '%s' not registered", name)
+	}
+
+	name2 := "test_name2"
+	opts := &Opts{Name: name2}
+
+	pid2, err2 := env.startServerOpts(opts)
+	if err2 != nil {
+		t.Error(err2)
+	}
+	if pid2 == nil {
+		t.Error("process must exists")
+	}
+
+	// name2 must not exists in default environment
+	pid3 := Whereis(name2)
+	if pid3 != nil {
+		t.Errorf("process '%s' must not be registered in default environment",
+			name2)
+	}
+
+	// name must not exists in 'env' environment
+	pid4 := env.Whereis(name)
+	if pid4 != nil {
+		t.Errorf("process '%s' must not be registered in 'env' environment",
+			name)
+	}
+}

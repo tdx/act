@@ -200,7 +200,7 @@ type GenServer interface {
 // GenServerLoop executes during whole time of process life.
 // It receives incoming messages from channels and handle it
 // using methods of implementation
-func GenServerLoop(
+func (a *act) GenServerLoop(
 	gs GenServer,
 	prefix string,
 	name interface{},
@@ -217,7 +217,7 @@ func GenServerLoop(
 
 	defer func() {
 
-		UnregisterPrefix(prefix, name)
+		a.UnregisterPrefix(prefix, name)
 		timer.Stop()
 		pid.flushMessages(prefix, name)
 		pid.closeChannels(prefix, name)

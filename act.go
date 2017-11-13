@@ -85,10 +85,15 @@ type act struct {
 
 // ---------------------------------------------------------------------------
 var nTrace bool
-var env *act
+var env *act // default env
 
 func init() {
 	flag.BoolVar(&nTrace, "trace", false, "trace actors")
+
+	env = NewEnv()
+}
+
+func NewEnv() *act {
 
 	registry := &registryChan{
 		makePidChan:     make(chan makePidReq),
@@ -98,15 +103,17 @@ func init() {
 		wherePrefixChan: make(chan wherePrefixReq),
 	}
 
-	env = &act{
+	a := &act{
 		registry:   registry,
 		registered: make(map[string]RegMap),
 	}
 
 	// without prefix
-	env.registered[""] = make(RegMap)
+	a.registered[""] = make(RegMap)
 
-	env.run()
+	a.run()
+
+	return a
 }
 
 func nLog(f string, a ...interface{}) {
@@ -118,9 +125,16 @@ func nLog(f string, a ...interface{}) {
 //
 // Spawn spawns a new GenServer process
 //
-func Spawn(gs GenServer, args ...interface{}) (pid *Pid, err error) {
+func Spawn(gs GenServer, args ...interface{}) (*Pid, error) {
 
-	pid, err = SpawnOpts(gs, &Opts{}, args...)
+	pid, err := env.Spawn(gs, args...)
+
+	return pid, err
+}
+
+func (a *act) Spawn(gs GenServer, args ...interface{}) (pid *Pid, err error) {
+
+	pid, err = a.SpawnOpts(gs, &Opts{}, args...)
 
 	return
 }
@@ -132,13 +146,22 @@ func SpawnPrefixName(
 	gs GenServer,
 	prefix string,
 	name interface{},
+	args ...interface{}) (*Pid, error) {
+
+	return env.SpawnPrefixName(gs, prefix, name, args...)
+}
+
+func (a *act) SpawnPrefixName(
+	gs GenServer,
+	prefix string,
+	name interface{},
 	args ...interface{}) (pid *Pid, err error) {
 
 	opts := &Opts{
 		Prefix: prefix,
 		Name:   name,
 	}
-	pid, err = SpawnOpts(gs, opts, args...)
+	pid, err = a.SpawnOpts(gs, opts, args...)
 
 	return
 }
@@ -147,12 +170,20 @@ func SpawnPrefixName(
 // SpawnOpts spawns a new GenServer process with given opts
 //
 func SpawnOpts(gs GenServer, opts *Opts, args ...interface{}) (*Pid, error) {
+	return env.SpawnOpts(gs, opts, args...)
+}
+
+func (a *act) SpawnOpts(
+	gs GenServer,
+	opts *Opts,
+	args ...interface{},
+) (*Pid, error) {
 
 	if opts.ChanSize == 0 {
 		opts.ChanSize = 100
 	}
 
-	pid, err := env.makePid(opts)
+	pid, err := a.makePid(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +192,7 @@ func SpawnOpts(gs GenServer, opts *Opts, args ...interface{}) (*Pid, error) {
 
 	initChan := make(chan Term)
 
-	go GenServerLoop(gs, opts.Prefix, opts.Name, initChan, pid, args...)
+	go a.GenServerLoop(gs, opts.Prefix, opts.Name, initChan, pid, args...)
 	result := <-initChan
 
 	switch result := result.(type) {
@@ -179,9 +210,13 @@ func SpawnOpts(gs GenServer, opts *Opts, args ...interface{}) (*Pid, error) {
 // Register associates the name with pid
 //
 func Register(name interface{}, pid *Pid) error {
+	return env.Register(name, pid)
+}
+
+func (a *act) Register(name interface{}, pid *Pid) error {
 	replyChan := make(chan bool, 1)
 	r := regNameReq{name: name, pid: pid, replyTo: replyChan}
-	env.registry.regNameChan <- r
+	a.registry.regNameChan <- r
 	reply := <-replyChan
 
 	if reply == true {
@@ -195,9 +230,13 @@ func Register(name interface{}, pid *Pid) error {
 // RegisterPrefix associates the prefix + name with pid
 //
 func RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
+	return env.RegisterPrefix(prefix, name, pid)
+}
+
+func (a *act) RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
 	replyChan := make(chan bool, 1)
 	r := regNameReq{prefix: prefix, name: name, pid: pid, replyTo: replyChan}
-	env.registry.regNameChan <- r
+	a.registry.regNameChan <- r
 	reply := <-replyChan
 
 	if reply == true {
@@ -211,27 +250,39 @@ func RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
 // Unregister removes the registered name
 //
 func Unregister(name interface{}) {
+	env.Unregister(name)
+}
+
+func (a *act) Unregister(name interface{}) {
 	r := unregNameReq{name: name}
-	env.registry.unregNameChan <- r
+	a.registry.unregNameChan <- r
 }
 
 //
 // UnregisterPrefix removes the registered name
 //
 func UnregisterPrefix(prefix string, name interface{}) {
+	env.UnregisterPrefix(prefix, name)
+}
+
+func (a *act) UnregisterPrefix(prefix string, name interface{}) {
 	if prefix == "" && name == nil {
 		return
 	}
 
 	r := unregNameReq{prefix: prefix, name: name}
-	env.registry.unregNameChan <- r
+	a.registry.unregNameChan <- r
 }
 
 //
 // Whereis returns pid of registered process
 //
 func Whereis(name interface{}) *Pid {
-	pid := WhereisPrefix("", name)
+	return env.Whereis(name)
+}
+
+func (a *act) Whereis(name interface{}) *Pid {
+	pid := a.WhereisPrefix("", name)
 
 	return pid
 }
@@ -240,9 +291,13 @@ func Whereis(name interface{}) *Pid {
 // WhereisPrefix returns pid of registered process
 //
 func WhereisPrefix(prefix string, name interface{}) *Pid {
+	return env.WhereisPrefix(prefix, name)
+}
+
+func (a *act) WhereisPrefix(prefix string, name interface{}) *Pid {
 	replyChan := make(chan *Pid, 1)
 	r := whereNameReq{prefix: prefix, name: name, replyTo: replyChan}
-	env.registry.whereNameChan <- r
+	a.registry.whereNameChan <- r
 	pid := <-replyChan
 
 	return pid
@@ -252,57 +307,61 @@ func WhereisPrefix(prefix string, name interface{}) *Pid {
 // Whereare returns all pids with same prefix
 //
 func Whereare(prefix string) RegMap {
+	return env.Whereare(prefix)
+}
+
+func (a *act) Whereare(prefix string) RegMap {
 	replyChan := make(chan RegMap, 1)
 	r := wherePrefixReq{prefix: prefix, replyTo: replyChan}
-	env.registry.wherePrefixChan <- r
+	a.registry.wherePrefixChan <- r
 	regs := <-replyChan
 
 	return regs
 }
 
 // ---------------------------------------------------------------------------
-func (n *act) run() {
-	go n.registrator()
+func (a *act) run() {
+	go a.registrator()
 }
 
-func (n *act) registrator() {
+func (a *act) registrator() {
 	for {
 
 		//
 		// first handle new registation
 		//
 		select {
-		case req := <-n.registry.makePidChan:
-			n.regNewPid(&req)
+		case req := <-a.registry.makePidChan:
+			a.regNewPid(&req)
 			continue
 		default:
 		}
 
 		select {
-		case req := <-n.registry.makePidChan:
-			n.regNewPid(&req)
-		case req := <-n.registry.regNameChan:
-			if _, ok := n.registered[req.prefix]; !ok {
-				n.registered[req.prefix] = make(RegMap)
+		case req := <-a.registry.makePidChan:
+			a.regNewPid(&req)
+		case req := <-a.registry.regNameChan:
+			if _, ok := a.registered[req.prefix]; !ok {
+				a.registered[req.prefix] = make(RegMap)
 			}
-			if _, ok := n.registered[req.prefix][req.name]; ok {
+			if _, ok := a.registered[req.prefix][req.name]; ok {
 				req.replyTo <- false // name registered
 			} else {
-				n.registered[req.prefix][req.name] = req.pid
+				a.registered[req.prefix][req.name] = req.pid
 				req.replyTo <- true
 			}
 
-		case req := <-n.registry.unregNameChan:
-			if _, ok := n.registered[req.prefix]; ok {
-				delete(n.registered[req.prefix], req.name)
+		case req := <-a.registry.unregNameChan:
+			if _, ok := a.registered[req.prefix]; ok {
+				delete(a.registered[req.prefix], req.name)
 			}
 
-		case req := <-n.registry.whereNameChan:
-			req.replyTo <- n.registered[req.prefix][req.name]
+		case req := <-a.registry.whereNameChan:
+			req.replyTo <- a.registered[req.prefix][req.name]
 
-		case req := <-n.registry.wherePrefixChan:
+		case req := <-a.registry.wherePrefixChan:
 			var rpids RegMap
-			if pids, ok := n.registered[req.prefix]; ok {
+			if pids, ok := a.registered[req.prefix]; ok {
 				rpids = make(RegMap)
 				for k, v := range pids {
 					rpids[k] = v
@@ -313,20 +372,20 @@ func (n *act) registrator() {
 	}
 }
 
-func (n *act) regNewPid(req *makePidReq) {
+func (a *act) regNewPid(req *makePidReq) {
 	newPidCreated := true
 
 	var newPid Pid
-	newPid.id = n.serial + 1
+	newPid.id = a.serial + 1
 
 	var resp makePidResp
 	resp.pid = &newPid
 
 	// register name with prefix if not empty
 	if req.opts.Name != nil {
-		if _, ok := n.registered[req.opts.Prefix]; ok {
+		if _, ok := a.registered[req.opts.Prefix]; ok {
 			// map with prefix exists
-			if pid, ok := n.registered[req.opts.Prefix][req.opts.Name]; ok {
+			if pid, ok := a.registered[req.opts.Prefix][req.opts.Name]; ok {
 
 				newPidCreated = false
 
@@ -340,25 +399,25 @@ func (n *act) regNewPid(req *makePidReq) {
 							req.opts.Prefix, req.opts.Name)
 				}
 			} else {
-				n.registered[req.opts.Prefix][req.opts.Name] = resp.pid
+				a.registered[req.opts.Prefix][req.opts.Name] = resp.pid
 			}
 
 		} else { // no maps with prefix
-			n.registered[req.opts.Prefix] = make(RegMap)
-			n.registered[req.opts.Prefix][req.opts.Name] = resp.pid
+			a.registered[req.opts.Prefix] = make(RegMap)
+			a.registered[req.opts.Prefix][req.opts.Name] = resp.pid
 		}
 	}
 
 	if newPidCreated {
-		n.serial++
+		a.serial++
 	}
 
 	req.replyTo <- resp
 }
 
-func (n *act) makePid(opts *Opts) (*Pid, error) {
+func (a *act) makePid(opts *Opts) (*Pid, error) {
 	replyChan := make(chan makePidResp, 1)
-	n.registry.makePidChan <- makePidReq{opts: opts, replyTo: replyChan}
+	a.registry.makePidChan <- makePidReq{opts: opts, replyTo: replyChan}
 	resp := <-replyChan
 
 	return resp.pid, resp.err

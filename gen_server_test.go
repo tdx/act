@@ -284,6 +284,10 @@ func startServerOpts(b *testing.B, opts *Opts) {
 	}
 }
 
+func (a *act) startServerOpts(opts *Opts) (*Pid, error) {
+	return a.SpawnOpts(new(gs), opts)
+}
+
 func TestInitStop(t *testing.T) {
 	var err error
 	pid, err = startFail()
