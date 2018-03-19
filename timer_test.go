@@ -110,3 +110,31 @@ func TestTimerStop(t *testing.T) {
 
 	pid.Stop()
 }
+
+func TestExtTimer(t *testing.T) {
+	env := NewEnv()
+
+	pid, err := env.startServerOpts(&Opts{Name: "test_name"})
+	if err != nil {
+		t.Error(err)
+	}
+	if pid == nil {
+		t.Error("process must exists")
+	}
+
+	var timeoutMs uint32 = 100
+	_ = pid.SendAfterWithStop(cmdTest, timeoutMs)
+
+	time.Sleep(time.Duration(300) * time.Millisecond)
+
+	r, err := inc(pid)
+	if err != nil {
+		t.Errorf("inc() failed: %s", err.Error())
+	}
+
+	if r != 101 {
+		t.Errorf("inc() != %d", r)
+	}
+
+	pid.Stop()
+}
