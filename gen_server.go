@@ -500,7 +500,7 @@ func (pid *Pid) flushMessages(prefix string, name interface{}) {
 		}
 	}()
 
-	for {
+	for len(pid.inChan) > 0 {
 		select {
 		case m := <-pid.inChan:
 			switch m := m.(type) {
