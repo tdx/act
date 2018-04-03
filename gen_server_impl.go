@@ -2,7 +2,6 @@ package act
 
 import (
 	"fmt"
-	"log"
 )
 
 //
@@ -20,9 +19,6 @@ type GenServerImpl struct {
 //
 func (gs *GenServerImpl) Init(args ...interface{}) Term {
 
-	log.Printf("GenServerImpl:Init : pid: #%d, reg name: %s/%s, args: %#v",
-		gs.Self().Id(), gs.Prefix(), gs.NameStr(), args)
-
 	return GsInitOk
 }
 
@@ -30,8 +26,6 @@ func (gs *GenServerImpl) Init(args ...interface{}) Term {
 // HandleCast handles incoming messages from `pid.Cast(data)`
 //
 func (gs *GenServerImpl) HandleCast(req Term) Term {
-
-	log.Printf("GenServerImpl:HandleCast : %#v", req)
 
 	return GsCastNoReply
 }
@@ -41,8 +35,6 @@ func (gs *GenServerImpl) HandleCast(req Term) Term {
 //
 func (gs *GenServerImpl) HandleCall(req Term, from From) Term {
 
-	log.Printf("GenServerImpl:HandleCall : %#v, From: %#v", req, from)
-
 	return GsCallReplyOk
 }
 
@@ -50,7 +42,6 @@ func (gs *GenServerImpl) HandleCall(req Term, from From) Term {
 // Terminate called when process died
 //
 func (gs *GenServerImpl) Terminate(reason string) {
-	log.Printf("GenServerImpl:Terminate : %#v", reason)
 }
 
 func (gs *GenServerImpl) setPid(pid *Pid) {
@@ -70,6 +61,13 @@ func (gs *GenServerImpl) setName(name interface{}) {
 //
 func (gs *GenServerImpl) Self() *Pid {
 	return gs.self
+}
+
+//
+// Id returns id of the process
+//
+func (gs *GenServerImpl) Id() uint64 {
+	return gs.self.Id()
 }
 
 //
