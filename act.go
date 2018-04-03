@@ -187,8 +187,6 @@ func (a *act) SpawnOpts(
 	if err != nil {
 		return nil, err
 	}
-	pid.inChan = make(chan interface{}, opts.ChanSize)
-	pid.stopChan = make(chan *stopReq)
 
 	initChan := make(chan Term)
 
@@ -409,6 +407,8 @@ func (a *act) regNewPid(req *makePidReq) {
 	}
 
 	if newPidCreated {
+		resp.pid.inChan = make(chan interface{}, req.opts.ChanSize)
+		resp.pid.stopChan = make(chan *stopReq)
 		a.serial++
 	}
 
