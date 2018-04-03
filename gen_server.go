@@ -395,29 +395,24 @@ func (pid *Pid) Call(data Term) (reply Term, err error) {
 		}
 	}()
 
-	if pid != nil && pid.inChan != nil {
+	var replyTerm Term
 
-		var replyTerm Term
+	replyChan := make(chan Term, 1)
+	pid.inChan <- &genCallReq{data, replyChan}
+	replyTerm = <-replyChan
 
-		replyChan := make(chan Term, 1)
-		pid.inChan <- &genCallReq{data, replyChan}
-		replyTerm = <-replyChan
-
-		// server stopped
-		if replyTerm == nil {
-			return nil, GsNoProcError
-		}
-
-		// call crashed ?
-		switch err := replyTerm.(type) {
-		case error:
-			return nil, err
-		}
-
-		return replyTerm, nil
+	// server stopped
+	if replyTerm == nil {
+		return nil, GsNoProcError
 	}
 
-	return nil, GsNoProcError
+	// call crashed ?
+	switch err := replyTerm.(type) {
+	case error:
+		return nil, err
+	}
+
+	return replyTerm, nil
 }
 
 //
@@ -431,13 +426,9 @@ func (pid *Pid) Cast(data Term) (err error) {
 		}
 	}()
 
-	if pid != nil && pid.inChan != nil {
-		pid.inChan <- &genReq{data}
+	pid.inChan <- &genReq{data}
 
-		return nil
-	}
-
-	return GsNoProcError
+	return nil
 }
 
 //
@@ -459,28 +450,26 @@ func (pid *Pid) StopReason(reason string) (err error) {
 		}
 	}()
 
-	if pid != nil && pid.stopChan != nil {
+	replyChan := make(chan bool)
+	pid.stopChan <- &stopReq{reason, replyChan}
+	<-replyChan
 
-		replyChan := make(chan bool)
-		pid.stopChan <- &stopReq{reason, replyChan}
-		<-replyChan
-
-		return nil
-	}
-
-	return GsNoProcError
+	return nil
 }
 
 // ---------------------------------------------------------------------------
 func (pid *Pid) closeChannels(prefix string, name interface{}) {
-	if pid == nil {
-		return
-	}
 
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("pid #%d/%s/%v: closeChannels recovered: %#v\n",
 				pid.Id(), prefix, name, r)
+
+			// trace := make([]byte, 1024)
+			// count := runtime.Stack(trace, true)
+			// fmt.Printf("pid #%d/%s/%s: closeChannels stack of %d bytes: %s\n",
+			// 	pid.Id(), prefix, name, count, trace)
+
 		}
 	}()
 
@@ -489,14 +478,16 @@ func (pid *Pid) closeChannels(prefix string, name interface{}) {
 }
 
 func (pid *Pid) flushMessages(prefix string, name interface{}) {
-	if pid == nil {
-		return
-	}
 
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("pid #%d/%s/%v: flushMessages recovered: %#v\n",
 				pid.Id(), prefix, name, r)
+
+			// trace := make([]byte, 1024)
+			// count := runtime.Stack(trace, true)
+			// fmt.Printf("pid #%d/%s/%s: flushMessages stack of %d bytes: %s\n",
+			// 	pid.Id(), prefix, name, count, trace)
 		}
 	}()
 
@@ -506,7 +497,8 @@ func (pid *Pid) flushMessages(prefix string, name interface{}) {
 			switch m := m.(type) {
 			case *genCallReq:
 				fmt.Printf("%s flushMessages: pid #%d/%s/%s: %#v\n",
-					time.Now(), pid.Id(), prefix, name, m)
+					time.Now().Truncate(time.Microsecond),
+					pid.Id(), prefix, name, m)
 				close(m.replyChan)
 			}
 		default:
