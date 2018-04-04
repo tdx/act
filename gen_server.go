@@ -3,7 +3,7 @@ package act
 import (
 	"errors"
 	"fmt"
-	// "runtime"
+	"runtime"
 	"time"
 )
 
@@ -229,10 +229,10 @@ func (a *act) GenServerLoop(
 			fmt.Printf("%s pid #%d/%s/%v: GenServer recovered: %#v\n",
 				now, pid.Id(), prefix, name, r)
 
-			// trace := make([]byte, 512)
-			// count := runtime.Stack(trace, true)
-			// fmt.Printf("%s pid #%d/%s/%s: Stack of %d bytes: %s\n",
-			// 	now, pid.Id(), prefix, name, count, trace)
+			trace := make([]byte, 512)
+			count := runtime.Stack(trace, true)
+			fmt.Printf("%s pid #%d/%s/%s: Stack of %d bytes: %s\n",
+				now, pid.Id(), prefix, name, count, trace)
 
 			if !inTerminate {
 				inTerminate = true
@@ -481,10 +481,10 @@ func (pid *Pid) closeChannels(prefix string, name interface{}) {
 			fmt.Printf("%s pid #%d/%s/%v: closeChannels recovered: %#v\n",
 				now, pid.Id(), prefix, name, r)
 
-			// trace := make([]byte, 512)
-			// count := runtime.Stack(trace, true)
-			// fmt.Printf("%s pid #%d/%s/%s: closeChannels stack of %d bytes: %s\n",
-			// 	now, pid.Id(), prefix, name, count, trace)
+			trace := make([]byte, 512)
+			count := runtime.Stack(trace, true)
+			fmt.Printf("%s pid #%d/%s/%s: closeChannels stack of %d bytes: %s\n",
+				now, pid.Id(), prefix, name, count, trace)
 		}
 	}()
 
@@ -501,10 +501,10 @@ func (pid *Pid) flushMessages(prefix string, name interface{}) {
 			fmt.Printf("%s pid #%d/%s/%v: flushMessages recovered: %#v\n",
 				now, pid.Id(), prefix, name, r)
 
-			// trace := make([]byte, 512)
-			// count := runtime.Stack(trace, true)
-			// fmt.Printf("%s pid #%d/%s/%s: flushMessages stack of %d bytes: %s\n",
-			// 	now, pid.Id(), prefix, name, count, trace)
+			trace := make([]byte, 512)
+			count := runtime.Stack(trace, true)
+			fmt.Printf("%s pid #%d/%s/%s: flushMessages stack of %d bytes: %s\n",
+				now, pid.Id(), prefix, name, count, trace)
 		}
 	}()
 
