@@ -3,8 +3,8 @@ package act
 import (
 	"errors"
 	"fmt"
-	"time"
 	// "runtime"
+	"time"
 )
 
 //
@@ -224,14 +224,18 @@ func (a *act) GenServerLoop(
 
 		if r := recover(); r != nil {
 
-			fmt.Printf("pid #%d/%s/%v: GenServer recovered: %#v\n",
-				pid.Id(), prefix, name, r)
-			// trace := make([]byte, 1024)
+			now := time.Now().Truncate(time.Microsecond)
+
+			fmt.Printf("%s pid #%d/%s/%v: GenServer recovered: %#v\n",
+				now, pid.Id(), prefix, name, r)
+
+			// trace := make([]byte, 512)
 			// count := runtime.Stack(trace, true)
-			// fmt.Printf("pid #%d/%s/%s: Stack of %d bytes: %s\n",
-			// 	pid.Id(), prefix, name, count, trace)
+			// fmt.Printf("%s pid #%d/%s/%s: Stack of %d bytes: %s\n",
+			// 	now, pid.Id(), prefix, name, count, trace)
 
 			if !inTerminate {
+				inTerminate = true
 				gs.Terminate(fmt.Sprintf("crashed: %#v", r))
 			}
 
@@ -283,6 +287,11 @@ func (a *act) GenServerLoop(
 
 			timer.Stop()
 
+			// channel closed
+			if m == nil {
+				return
+			}
+
 			switch m := m.(type) {
 
 			// Call
@@ -315,8 +324,8 @@ func (a *act) GenServerLoop(
 					timer = pid.SendAfterWithStop(gsTimeout, result.Timeout)
 
 				case *GsCallStop:
-					inTerminate = true
 					m.replyChan <- result.Reply
+					inTerminate = true
 					gs.Terminate(result.Reason)
 					return
 
@@ -359,6 +368,11 @@ func (a *act) GenServerLoop(
 		case m := <-pid.stopChan:
 
 			timer.Stop()
+
+			// channel closed
+			if m == nil {
+				return
+			}
 
 			inStop = true
 			replyStop = m.replyChan
@@ -462,14 +476,15 @@ func (pid *Pid) closeChannels(prefix string, name interface{}) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("pid #%d/%s/%v: closeChannels recovered: %#v\n",
-				pid.Id(), prefix, name, r)
+			now := time.Now().Truncate(time.Microsecond)
 
-			// trace := make([]byte, 1024)
+			fmt.Printf("%s pid #%d/%s/%v: closeChannels recovered: %#v\n",
+				now, pid.Id(), prefix, name, r)
+
+			// trace := make([]byte, 512)
 			// count := runtime.Stack(trace, true)
-			// fmt.Printf("pid #%d/%s/%s: closeChannels stack of %d bytes: %s\n",
-			// 	pid.Id(), prefix, name, count, trace)
-
+			// fmt.Printf("%s pid #%d/%s/%s: closeChannels stack of %d bytes: %s\n",
+			// 	now, pid.Id(), prefix, name, count, trace)
 		}
 	}()
 
@@ -481,16 +496,24 @@ func (pid *Pid) flushMessages(prefix string, name interface{}) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("pid #%d/%s/%v: flushMessages recovered: %#v\n",
-				pid.Id(), prefix, name, r)
+			now := time.Now().Truncate(time.Microsecond)
 
-			// trace := make([]byte, 1024)
+			fmt.Printf("%s pid #%d/%s/%v: flushMessages recovered: %#v\n",
+				now, pid.Id(), prefix, name, r)
+
+			// trace := make([]byte, 512)
 			// count := runtime.Stack(trace, true)
-			// fmt.Printf("pid #%d/%s/%s: flushMessages stack of %d bytes: %s\n",
-			// 	pid.Id(), prefix, name, count, trace)
+			// fmt.Printf("%s pid #%d/%s/%s: flushMessages stack of %d bytes: %s\n",
+			// 	now, pid.Id(), prefix, name, count, trace)
 		}
 	}()
 
+	pid.flushInput(prefix, name)
+	pid.flushStop()
+
+}
+
+func (pid *Pid) flushInput(prefix string, name interface{}) {
 	for len(pid.inChan) > 0 {
 		select {
 		case m := <-pid.inChan:
@@ -501,6 +524,17 @@ func (pid *Pid) flushMessages(prefix string, name interface{}) {
 					pid.Id(), prefix, name, m)
 				close(m.replyChan)
 			}
+		default:
+			return
+		}
+	}
+
+}
+
+func (pid *Pid) flushStop() {
+	for len(pid.stopChan) > 0 {
+		select {
+		case <-pid.stopChan:
 		default:
 			return
 		}

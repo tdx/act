@@ -371,13 +371,11 @@ func (a *act) registrator() {
 }
 
 func (a *act) regNewPid(req *makePidReq) {
+
 	newPidCreated := true
 
-	var newPid Pid
-	newPid.id = a.serial + 1
-
 	var resp makePidResp
-	resp.pid = &newPid
+	resp.pid = &Pid{id: a.serial + 1}
 
 	// register name with prefix if not empty
 	if req.opts.Name != nil {
