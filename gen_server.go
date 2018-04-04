@@ -508,12 +508,6 @@ func (pid *Pid) flushMessages(prefix string, name interface{}) {
 		}
 	}()
 
-	pid.flushInput(prefix, name)
-	pid.flushStop()
-
-}
-
-func (pid *Pid) flushInput(prefix string, name interface{}) {
 	for len(pid.inChan) > 0 {
 		select {
 		case m := <-pid.inChan:
@@ -525,18 +519,21 @@ func (pid *Pid) flushInput(prefix string, name interface{}) {
 				close(m.replyChan)
 			}
 		default:
-			return
+			break
 		}
 	}
 
-}
-
-func (pid *Pid) flushStop() {
 	for len(pid.stopChan) > 0 {
 		select {
-		case <-pid.stopChan:
+		case m := <-pid.stopChan:
+			if m != nil {
+				fmt.Printf("%s flushMessages: pid #%d/%s/%s: %#v\n",
+					time.Now().Truncate(time.Microsecond),
+					pid.Id(), prefix, name, m)
+				close(m.replyChan)
+			}
 		default:
-			return
+			break
 		}
 	}
 }
