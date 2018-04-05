@@ -77,7 +77,7 @@ type registryChan struct {
 	wherePrefixChan chan wherePrefixReq
 }
 
-type act struct {
+type Act struct {
 	serial     uint64
 	registry   *registryChan
 	registered map[string]RegMap
@@ -85,7 +85,7 @@ type act struct {
 
 // ---------------------------------------------------------------------------
 var nTrace bool
-var env *act // default env
+var env *Act // default env
 
 func init() {
 	flag.BoolVar(&nTrace, "trace", false, "trace actors")
@@ -93,7 +93,7 @@ func init() {
 	env = NewEnv()
 }
 
-func NewEnv() *act {
+func NewEnv() *Act {
 
 	registry := &registryChan{
 		makePidChan:     make(chan makePidReq),
@@ -103,7 +103,7 @@ func NewEnv() *act {
 		wherePrefixChan: make(chan wherePrefixReq),
 	}
 
-	a := &act{
+	a := &Act{
 		registry:   registry,
 		registered: make(map[string]RegMap),
 	}
@@ -132,7 +132,7 @@ func Spawn(gs GenServer, args ...interface{}) (*Pid, error) {
 	return pid, err
 }
 
-func (a *act) Spawn(gs GenServer, args ...interface{}) (pid *Pid, err error) {
+func (a *Act) Spawn(gs GenServer, args ...interface{}) (pid *Pid, err error) {
 
 	pid, err = a.SpawnOpts(gs, &Opts{}, args...)
 
@@ -151,7 +151,7 @@ func SpawnPrefixName(
 	return env.SpawnPrefixName(gs, prefix, name, args...)
 }
 
-func (a *act) SpawnPrefixName(
+func (a *Act) SpawnPrefixName(
 	gs GenServer,
 	prefix string,
 	name interface{},
@@ -173,7 +173,7 @@ func SpawnOpts(gs GenServer, opts *Opts, args ...interface{}) (*Pid, error) {
 	return env.SpawnOpts(gs, opts, args...)
 }
 
-func (a *act) SpawnOpts(
+func (a *Act) SpawnOpts(
 	gs GenServer,
 	opts *Opts,
 	args ...interface{},
@@ -211,7 +211,7 @@ func Register(name interface{}, pid *Pid) error {
 	return env.Register(name, pid)
 }
 
-func (a *act) Register(name interface{}, pid *Pid) error {
+func (a *Act) Register(name interface{}, pid *Pid) error {
 	replyChan := make(chan bool, 1)
 	r := regNameReq{name: name, pid: pid, replyTo: replyChan}
 	a.registry.regNameChan <- r
@@ -231,7 +231,7 @@ func RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
 	return env.RegisterPrefix(prefix, name, pid)
 }
 
-func (a *act) RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
+func (a *Act) RegisterPrefix(prefix string, name interface{}, pid *Pid) error {
 	replyChan := make(chan bool, 1)
 	r := regNameReq{prefix: prefix, name: name, pid: pid, replyTo: replyChan}
 	a.registry.regNameChan <- r
@@ -251,7 +251,7 @@ func Unregister(name interface{}) {
 	env.Unregister(name)
 }
 
-func (a *act) Unregister(name interface{}) {
+func (a *Act) Unregister(name interface{}) {
 	r := unregNameReq{name: name}
 	a.registry.unregNameChan <- r
 }
@@ -263,7 +263,7 @@ func UnregisterPrefix(prefix string, name interface{}) {
 	env.UnregisterPrefix(prefix, name)
 }
 
-func (a *act) UnregisterPrefix(prefix string, name interface{}) {
+func (a *Act) UnregisterPrefix(prefix string, name interface{}) {
 	if prefix == "" && name == nil {
 		return
 	}
@@ -279,7 +279,7 @@ func Whereis(name interface{}) *Pid {
 	return env.Whereis(name)
 }
 
-func (a *act) Whereis(name interface{}) *Pid {
+func (a *Act) Whereis(name interface{}) *Pid {
 	pid := a.WhereisPrefix("", name)
 
 	return pid
@@ -292,7 +292,7 @@ func WhereisPrefix(prefix string, name interface{}) *Pid {
 	return env.WhereisPrefix(prefix, name)
 }
 
-func (a *act) WhereisPrefix(prefix string, name interface{}) *Pid {
+func (a *Act) WhereisPrefix(prefix string, name interface{}) *Pid {
 	replyChan := make(chan *Pid, 1)
 	r := whereNameReq{prefix: prefix, name: name, replyTo: replyChan}
 	a.registry.whereNameChan <- r
@@ -308,7 +308,7 @@ func Whereare(prefix string) RegMap {
 	return env.Whereare(prefix)
 }
 
-func (a *act) Whereare(prefix string) RegMap {
+func (a *Act) Whereare(prefix string) RegMap {
 	replyChan := make(chan RegMap, 1)
 	r := wherePrefixReq{prefix: prefix, replyTo: replyChan}
 	a.registry.wherePrefixChan <- r
@@ -318,11 +318,11 @@ func (a *act) Whereare(prefix string) RegMap {
 }
 
 // ---------------------------------------------------------------------------
-func (a *act) run() {
+func (a *Act) run() {
 	go a.registrator()
 }
 
-func (a *act) registrator() {
+func (a *Act) registrator() {
 	for {
 
 		//
@@ -370,7 +370,7 @@ func (a *act) registrator() {
 	}
 }
 
-func (a *act) regNewPid(req *makePidReq) {
+func (a *Act) regNewPid(req *makePidReq) {
 
 	newPidCreated := true
 
@@ -413,7 +413,7 @@ func (a *act) regNewPid(req *makePidReq) {
 	req.replyTo <- resp
 }
 
-func (a *act) makePid(opts *Opts) (*Pid, error) {
+func (a *Act) makePid(opts *Opts) (*Pid, error) {
 	replyChan := make(chan makePidResp, 1)
 	a.registry.makePidChan <- makePidReq{opts: opts, replyTo: replyChan}
 	resp := <-replyChan

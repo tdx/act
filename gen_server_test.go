@@ -284,7 +284,7 @@ func startServerOpts(b *testing.B, opts *Opts) {
 	}
 }
 
-func (a *act) startServerOpts(opts *Opts) (*Pid, error) {
+func (a *Act) startServerOpts(opts *Opts) (*Pid, error) {
 	return a.SpawnOpts(new(gs), opts)
 }
 

@@ -200,7 +200,7 @@ type GenServer interface {
 // GenServerLoop executes during whole time of process life.
 // It receives incoming messages from channels and handle it
 // using methods of implementation
-func (a *act) GenServerLoop(
+func (a *Act) GenServerLoop(
 	gs GenServer,
 	prefix string,
 	name interface{},
