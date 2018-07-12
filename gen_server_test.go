@@ -21,6 +21,9 @@ type reqInc struct {
 	i int
 }
 
+type reqCallError struct {
+}
+
 const (
 	cmdTest        string = "testCast"
 	cmdStop        string = "stop"
@@ -44,7 +47,11 @@ const (
 	cmdLongCall string = "cmdLongCall"
 )
 
-var pid *Pid
+var (
+	pid *Pid
+
+	cmdCallError = &reqCallError{}
+)
 
 func start(i int) (pid *Pid, err error) {
 
@@ -136,6 +143,10 @@ func (s *gs) HandleCall(req Term, from From) Term {
 		req.i = s.i
 
 		return &GsCallReply{req}
+
+	case *reqCallError:
+
+		return fmt.Errorf("error from call")
 
 	case string:
 		if req == cmdCrash {
@@ -490,6 +501,15 @@ func TestCrashInStop(t *testing.T) {
 
 	// crash, stpped in any case
 	pid.Stop()
+}
+
+func TestReturnErrorFromCall(t *testing.T) {
+	startServer(t)
+
+	_, err := pid.Call(cmdCallError)
+	if err == nil {
+		t.Error("server must return erorr from call")
+	}
 }
 
 //

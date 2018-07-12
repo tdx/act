@@ -329,6 +329,9 @@ func (a *Act) GenServerLoop(
 					gs.Terminate(result.Reason)
 					return
 
+				case error:
+					m.replyChan <- result
+
 				default:
 					reply := fmt.Sprintf("HandleCall bad reply: %#v", result)
 					m.replyChan <- errors.New(reply)
