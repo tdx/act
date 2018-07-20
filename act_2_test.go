@@ -78,7 +78,7 @@ func TestRegistered(t *testing.T) {
 		t.Fatal(err)
 	}
 	if opts.ReturnedRegisteredPid == true {
-		t.Fatalf("retured registered pid!")
+		t.Fatalf("returned registered pid!")
 	}
 
 	i := 20
@@ -91,7 +91,7 @@ func TestRegistered(t *testing.T) {
 		t.Fatal(err)
 	}
 	if i != 20 {
-		t.Fatalf("expected i 20, got %d\n", i)
+		t.Fatalf("expected i=20, got %d\n", i)
 	}
 
 	opts2 := &Opts{
@@ -106,7 +106,7 @@ func TestRegistered(t *testing.T) {
 		t.Fatalf("pid must be registered!")
 	}
 	if pid.Id() != pid2.Id() {
-		t.Fatalf("expired pid id %d, got %d\n", pid.Id(), pid2.Id())
+		t.Fatalf("expected pid id=%d, got %d\n", pid.Id(), pid2.Id())
 	}
 
 	//
@@ -117,6 +117,6 @@ func TestRegistered(t *testing.T) {
 		t.Fatal(err)
 	}
 	if i2 != i {
-		t.Fatalf("expected i %d, got %d\n", i, i2)
+		t.Fatalf("expected i=%d, got %d\n", i, i2)
 	}
 }
