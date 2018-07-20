@@ -30,11 +30,13 @@ type Opts struct {
 	Name                  interface{}
 	ChanSize              uint32
 	ReturnPidIfRegistered bool
+	ReturnedRegisteredPid bool
 }
 
 type makePidResp struct {
-	pid *Pid
-	err error
+	pid    *Pid
+	oldPid bool
+	err    error
 }
 
 type makePidReq struct {
@@ -182,10 +184,16 @@ func (a *Act) SpawnOpts(
 	if opts.ChanSize == 0 {
 		opts.ChanSize = 100
 	}
+	opts.ReturnedRegisteredPid = false
 
-	pid, err := a.makePid(opts)
+	pid, oldPid, err := a.makePid(opts)
 	if err != nil {
 		return nil, err
+	}
+
+	if opts.ReturnPidIfRegistered && oldPid {
+		opts.ReturnedRegisteredPid = true
+		return pid, nil
 	}
 
 	initChan := make(chan Term)
@@ -376,8 +384,11 @@ func (a *Act) regNewPid(req *makePidReq) {
 
 	var resp makePidResp
 	resp.pid = &Pid{id: a.serial + 1}
+	resp.oldPid = false
 
+	//
 	// register name with prefix if not empty
+	//
 	if req.opts.Name != nil {
 		if _, ok := a.registered[req.opts.Prefix]; ok {
 			// map with prefix exists
@@ -387,12 +398,13 @@ func (a *Act) regNewPid(req *makePidReq) {
 
 				if req.opts.ReturnPidIfRegistered == true {
 					resp.pid = pid
+					resp.oldPid = true
 				} else {
 					// name already registered
 					resp.pid = nil
 					resp.err =
-						fmt.Errorf("name '%s/%v' already registered",
-							req.opts.Prefix, req.opts.Name)
+						fmt.Errorf("name '%s/%v' already registered for pid #%d",
+							req.opts.Prefix, req.opts.Name, pid.Id())
 				}
 			} else {
 				a.registered[req.opts.Prefix][req.opts.Name] = resp.pid
@@ -413,12 +425,12 @@ func (a *Act) regNewPid(req *makePidReq) {
 	req.replyTo <- resp
 }
 
-func (a *Act) makePid(opts *Opts) (*Pid, error) {
+func (a *Act) makePid(opts *Opts) (*Pid, bool, error) {
 	replyChan := make(chan makePidResp, 1)
 	a.registry.makePidChan <- makePidReq{opts: opts, replyTo: replyChan}
 	resp := <-replyChan
 
-	return resp.pid, resp.err
+	return resp.pid, resp.oldPid, resp.err
 }
 
 //
