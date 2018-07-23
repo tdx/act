@@ -41,8 +41,7 @@ func BenchmarkCallName(b *testing.B) {
 	name := "test_proc_123"
 	opts := &Opts{
 		Prefix: prefix,
-		Name:   name,
-		ReturnPidIfRegistered: true}
+		Name:   name}
 
 	startServerOpts(b, opts)
 

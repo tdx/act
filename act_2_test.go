@@ -65,20 +65,18 @@ func setI(pid *Pid, i int) error {
 	return err
 }
 
-func TestRegistered(t *testing.T) {
+func TestSpawnOrLocate(t *testing.T) {
 
 	gs := new(gs2)
 
-	opts := &Opts{
-		Name: "ttt.name",
-		ReturnPidIfRegistered: true}
+	opts := &Opts{Name: "ttt.name"}
 
-	pid, err := SpawnOpts(gs, opts)
+	pid, newPid, err := SpawnOrLocate(gs, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if opts.ReturnedRegisteredPid == true {
-		t.Fatalf("returned registered pid!")
+	if newPid != true {
+		t.Fatalf("returned registered pid, expected new process!")
 	}
 
 	i := 20
@@ -94,15 +92,13 @@ func TestRegistered(t *testing.T) {
 		t.Fatalf("expected i=20, got %d\n", i)
 	}
 
-	opts2 := &Opts{
-		Name: "ttt.name",
-		ReturnPidIfRegistered: true}
+	opts2 := &Opts{Name: "ttt.name"}
 
-	pid2, err := SpawnOpts(gs, opts2)
+	pid2, newPid2, err := SpawnOrLocate(gs, opts2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if opts2.ReturnedRegisteredPid != true {
+	if newPid2 == true {
 		t.Fatalf("pid must be registered!")
 	}
 	if pid.Id() != pid2.Id() {
@@ -118,5 +114,17 @@ func TestRegistered(t *testing.T) {
 	}
 	if i2 != i {
 		t.Fatalf("expected i=%d, got %d\n", i, i2)
+	}
+}
+
+func TestSpawnOrLocate2(t *testing.T) {
+
+	gs := new(gs2)
+
+	opts := &Opts{}
+
+	_, _, err := SpawnOrLocate(gs, opts)
+	if err == nil {
+		t.Fatalf("name for regisration is empty - must fail")
 	}
 }

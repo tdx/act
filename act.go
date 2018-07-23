@@ -26,11 +26,9 @@ type Pid struct {
 // Opts - options for spawn actor process
 //
 type Opts struct {
-	Prefix                string
-	Name                  interface{}
-	ChanSize              uint32
-	ReturnPidIfRegistered bool
-	ReturnedRegisteredPid bool
+	Prefix   string
+	Name     interface{}
+	ChanSize uint32
 }
 
 type makePidResp struct {
@@ -40,8 +38,9 @@ type makePidResp struct {
 }
 
 type makePidReq struct {
-	opts    *Opts
-	replyTo chan<- makePidResp
+	opts                  *Opts
+	returnPidIfRegistered bool
+	replyTo               chan<- makePidResp
 }
 
 type regNameReq struct {
@@ -169,32 +168,72 @@ func (a *Act) SpawnPrefixName(
 }
 
 //
+// SpawnOrLocate return pid if it already registered otherwise spanws a new
+//  GenServer process with given options
+//
+func SpawnOrLocate(
+	gs GenServer,
+	opts *Opts,
+	args ...interface{}) (*Pid, bool, error) {
+
+	return env.SpawnOrLocate(gs, opts, args...)
+}
+
+func (a *Act) SpawnOrLocate(
+	gs GenServer,
+	opts *Opts,
+	args ...interface{}) (*Pid, bool, error) {
+
+	if opts.Name == nil || opts.Name == "" {
+		return nil, false, fmt.Errorf("name is empty")
+	}
+
+	pid, newPid, err := a.spawnOpts(gs, opts, true, args...)
+	if err != nil {
+		return nil, newPid, err
+	}
+
+	return pid, newPid, nil
+}
+
+//
 // SpawnOpts spawns a new GenServer process with given opts
 //
 func SpawnOpts(gs GenServer, opts *Opts, args ...interface{}) (*Pid, error) {
-	return env.SpawnOpts(gs, opts, args...)
+	pid, _, err := env.spawnOpts(gs, opts, false, args...)
+	return pid, err
 }
 
 func (a *Act) SpawnOpts(
 	gs GenServer,
 	opts *Opts,
+	args ...interface{}) (*Pid, error) {
+
+	pid, _, err := a.spawnOpts(gs, opts, false, args...)
+	return pid, err
+}
+
+func (a *Act) spawnOpts(
+	gs GenServer,
+	opts *Opts,
+	returnPidIfRegistered bool,
 	args ...interface{},
-) (*Pid, error) {
+) (*Pid, bool, error) {
 
 	if opts.ChanSize == 0 {
 		opts.ChanSize = 100
 	}
-	opts.ReturnedRegisteredPid = false
 
-	pid, oldPid, err := a.makePid(opts)
+	pid, oldPid, err := a.makePid(opts, returnPidIfRegistered)
 	if err != nil {
-		return nil, err
+		return nil, !oldPid, err
 	}
 
-	if opts.ReturnPidIfRegistered && oldPid {
-		opts.ReturnedRegisteredPid = true
-		return pid, nil
+	if returnPidIfRegistered && oldPid {
+		return pid, !oldPid, nil
 	}
+
+	newPid := true
 
 	initChan := make(chan Term)
 
@@ -204,12 +243,12 @@ func (a *Act) SpawnOpts(
 	switch result := result.(type) {
 	case gsInitOk:
 	case *GsInitStop:
-		return nil, errors.New(result.Reason)
+		return nil, newPid, errors.New(result.Reason)
 	case error:
-		return nil, result
+		return nil, newPid, result
 	}
 
-	return pid, nil
+	return pid, newPid, nil
 }
 
 //
@@ -396,7 +435,7 @@ func (a *Act) regNewPid(req *makePidReq) {
 
 				newPidCreated = false
 
-				if req.opts.ReturnPidIfRegistered == true {
+				if req.returnPidIfRegistered == true {
 					resp.pid = pid
 					resp.oldPid = true
 				} else {
@@ -425,9 +464,12 @@ func (a *Act) regNewPid(req *makePidReq) {
 	req.replyTo <- resp
 }
 
-func (a *Act) makePid(opts *Opts) (*Pid, bool, error) {
+func (a *Act) makePid(opts *Opts, returnPidIfRegistered bool) (*Pid, bool, error) {
 	replyChan := make(chan makePidResp, 1)
-	a.registry.makePidChan <- makePidReq{opts: opts, replyTo: replyChan}
+	a.registry.makePidChan <- makePidReq{
+		opts: opts,
+		returnPidIfRegistered: returnPidIfRegistered,
+		replyTo:               replyChan}
 	resp := <-replyChan
 
 	return resp.pid, resp.oldPid, resp.err
